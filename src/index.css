@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════
+   TOKENS DE COLOR  (light = :root   |   dark = html.dark)
+═══════════════════════════════════════════════════════════ */
+:root {
+  /* Fondos */
+  --bg-base:    #f6f6ed;
+  --bg-raised:  #ffffff;
+  --bg-surface: #eeeee2;
+  --bg-card:    rgba(140, 144, 59, 0.06);
+  --bg-nav:     rgba(255, 255, 255, 0.95);
+  --bg-footer:  #1d1e0c;
+  --bg-input:   rgba(140, 144, 59, 0.07);
+
+  /* Texto */
+  --tx-1:   #1a1c08;
+  --tx-2:   #4a4d20;
+  --tx-3:   #888b50;
+  --tx-inv: #ffffff;
+
+  /* Bordes */
+  --bd-1:     rgba(140, 144, 59, 0.15);
+  --bd-2:     rgba(140, 144, 59, 0.30);
+  --bd-accent: rgba(140, 144, 59, 0.35);
+
+  /* Nav shadow */
+  --nav-shadow: 0 1px 0 rgba(140,144,59,0.18), 0 4px 24px -4px rgba(140,144,59,0.08);
+}
+
+html.dark {
+  /* Fondos */
+  --bg-base:    #06111d;
+  --bg-raised:  #091929;
+  --bg-surface: #0b2035;
+  --bg-card:    rgba(255, 255, 255, 0.04);
+  --bg-nav:     rgba(2, 12, 24, 0.96);
+  --bg-footer:  #020c18;
+  --bg-input:   rgba(255, 255, 255, 0.05);
+
+  /* Texto */
+  --tx-1:   #f2f4e8;
+  --tx-2:   #b8bb90;
+  --tx-3:   #6b7060;
+  --tx-inv: #f2f4e8;
+
+  /* Bordes */
+  --bd-1:     rgba(255, 255, 255, 0.08);
+  --bd-2:     rgba(255, 255, 255, 0.16);
+  --bd-accent: rgba(140, 144, 59, 0.30);
+
+  /* Nav shadow */
+  --nav-shadow: 0 1px 0 rgba(140,144,59,0.15), 0 4px 24px -4px rgba(0,0,0,0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════════════════ */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--bg-base);
+    color: var(--tx-1);
+    min-height: 100vh;
+    transition: background-color 0.25s ease, color 0.2s ease;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTES REUTILIZABLES
+═══════════════════════════════════════════════════════════ */
+@layer components {
+  /* Botones */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
+           bg-brand-600 hover:bg-brand-500 text-white
+           transition-all duration-200 shadow-md hover:-translate-y-px
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-transparent;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 0 20px -4px rgba(140,144,59,0.4);
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
+           border text-brand-600 dark:text-brand-300
+           hover:bg-brand-500/10 hover:border-brand-500
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-400;
+    border-color: var(--bd-accent);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+           transition-all duration-150;
+    color: var(--tx-3);
+  }
+  .btn-ghost:hover {
+    color: var(--tx-1);
+    background-color: var(--bg-card);
+  }
+
+  /* Tarjetas */
+  .card {
+    @apply rounded-2xl overflow-hidden transition-all duration-300;
+    background-color: var(--bg-card);
+    border: 1px solid var(--bd-1);
+  }
+  .card:hover { border-color: var(--bd-accent); }
+
+  .glass {
+    @apply rounded-2xl backdrop-blur-md;
+    background-color: var(--bg-raised);
+    border: 1px solid var(--bd-1);
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.08);
+  }
+  html.dark .glass {
+    background-color: rgba(9,25,41,0.85);
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.4);
+  }
+
+  /* Tipografía de sección */
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold tracking-tight;
+    color: var(--tx-1);
+  }
+  .section-subtitle {
+    @apply text-lg mt-3 leading-relaxed;
+    color: var(--tx-2);
+  }
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #b9bc55, #8C903B, #6f7230);
+  }
+  html.dark .gradient-text {
+    background-image: linear-gradient(135deg, #d0d28c, #a4a843, #8C903B);
+  }
+
+  /* Badge de sección */
+  .section-badge {
+    @apply inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest;
+    background-color: #e6e7c0;
+    border: 1px solid rgba(140,144,59,0.35);
+    color: #2e3008;
+  }
+  html.dark .section-badge {
+    background-color: rgba(140,144,59,0.18);
+    border-color: rgba(140,144,59,0.35);
+    color: #e8eaa0;
+  }
+
+  /* Línea decorativa */
+  .glow-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(140,144,59,0.5), transparent);
+  }
+
+  /* Dot grid pattern */
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(140,144,59,0.18) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  html.dark .dot-grid {
+    background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: #8C903B; border-radius: 99px; }
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMACIONES
+═══════════════════════════════════════════════════════════ */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%       { opacity: 0.6;  transform: scale(1.08); }
+}
+.animate-glow { animation: pulse-glow 4s ease-in-out infinite; }
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadein       { animation: float-up 0.55s ease both; }
+.animate-fadein-delay { animation: float-up 0.55s 0.12s ease both; }
+.animate-fadein-slow  { animation: float-up 0.55s 0.25s ease both; }
+
+/* Transición suave de tema */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+/* Excluir animaciones largas de la transición de tema */
+.animate-glow, .animate-fadein, .animate-fadein-delay, .animate-fadein-slow,
+img, svg, button, a {
+  transition-property: none;
+}
+button, a {
+  transition: all 0.15s ease;
+}
