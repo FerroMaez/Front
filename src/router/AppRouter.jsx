@@ -24,20 +24,11 @@ import DashboardPage     from '../pages/backoffice/dashboard/DashboardPage'
 import InventoryPage     from '../pages/backoffice/inventory/InventoryPage'
 import OrdersPage        from '../pages/backoffice/orders/OrdersPage'
 import NotificationsPage from '../pages/backoffice/notifications/NotificationsPage'
-import EmployeesPage     from '../pages/backoffice/employees/EmployeesPage'
 
 /** @param {{ children: import('react').ReactNode }} props */
 function RequireAuth({ children }) {
   const { isAuthenticated } = useAuthStore()
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
-}
-
-/** @param {{ children: import('react').ReactNode }} props */
-function RequireEmployee({ children }) {
-  const { user, isAuthenticated } = useAuthStore()
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (!['EMPLEADO', 'JEFE'].includes(user?.rol)) return <Navigate to="/" replace />
-  return <>{children}</>
 }
 
 /** @param {{ children: import('react').ReactNode }} props */
@@ -70,12 +61,11 @@ export default function AppRouter() {
         </Route>
 
         {/* ── Backoffice ───────────────────────────────── */}
-        <Route path="/backoffice" element={<RequireEmployee><BackofficeLayout /></RequireEmployee>}>
-          <Route index                element={<RequireJefe><DashboardPage /></RequireJefe>} />
+        <Route path="/backoffice" element={<RequireJefe><BackofficeLayout /></RequireJefe>}>
+          <Route index                element={<DashboardPage />} />
           <Route path="inventario"    element={<InventoryPage />} />
           <Route path="ordenes"       element={<OrdersPage />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
-          <Route path="empleados"     element={<RequireJefe><EmployeesPage /></RequireJefe>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

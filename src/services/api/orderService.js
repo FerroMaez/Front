@@ -1,10 +1,11 @@
 import api from './axiosInstance'
 import { mockOrders, mockProducts } from '../../features/catalog/mockProducts'
+import { whatsappService } from './whatsappService'
 
 const USE_MOCK = true
 
 export const orderService = {
-  confirm: async ({ items }) => {
+  confirm: async ({ items, user }) => {
     if (USE_MOCK) {
       for (const item of items) {
         const p = mockProducts.find(p => p.id === item.producto_id)
@@ -16,15 +17,22 @@ export const orderService = {
         const p = mockProducts.find(p => p.id === i.producto_id)
         return s + (p?.precio_unitario || 0) * i.cantidad
       }, 0)
+      const enrichedItems = items.map(i => {
+        const p = mockProducts.find(p => p.id === i.producto_id)
+        return { ...i, nombre: p?.nombre, precio_unitario: p?.precio_unitario }
+      })
       items.forEach(item => {
         const p = mockProducts.find(p => p.id === item.producto_id)
         if (p) { p.stock_disponible -= item.cantidad; p.stock_reservado += item.cantidad }
       })
       const order = { id: ordenId, estado: 'PENDIENTE', total_cotizacion: total, fecha_creacion: new Date().toISOString(), items }
       mockOrders.unshift(order)
+      whatsappService.notifyOrder({ order, items: enrichedItems, user }).catch(() => {})
       return order
     }
-    return api.post('/ordenes/confirmar', { items }).then(r => r.data)
+    const order = await api.post('/ordenes/confirmar', { items }).then(r => r.data)
+    whatsappService.notifyOrder({ order, items, user }).catch(() => {})
+    return order
   },
 
   getMyOrders: async () => {

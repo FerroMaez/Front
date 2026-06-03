@@ -34,7 +34,7 @@ export default function LoginPage() {
       const { accessToken, usuario } = await authService.login(form)
       login(usuario, accessToken)
       let dest = '/perfil'
-      if (usuario.rol === 'EMPLEADO' || usuario.rol === 'JEFE') dest = '/backoffice'
+      if (usuario.rol === 'JEFE') dest = '/backoffice'
       else if (returnTo && returnTo !== '/') dest = returnTo
       navigate(dest, { replace: true })
     } catch (err) {

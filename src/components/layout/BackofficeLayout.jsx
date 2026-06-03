@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { FaTachometerAlt, FaBoxes, FaClipboardList, FaBell, FaUsers, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa'
+import { FaTachometerAlt, FaBoxes, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa'
 import { useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -8,7 +8,7 @@ import { IoSunnyOutline, IoMoonOutline } from 'react-icons/io5'
 import clsx from 'clsx'
 
 export default function BackofficeLayout() {
-  const { user, logout, isJefe } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const { unreadCount }           = useNotificationStore()
   const { theme, toggle }         = useThemeStore()
   const navigate                  = useNavigate()
@@ -17,12 +17,11 @@ export default function BackofficeLayout() {
   const handleLogout = () => { logout(); navigate('/') }
 
   const links = [
-    { to: '/backoffice',              label: 'Dashboard',  icon: <FaTachometerAlt size={15}/>, exact: true,  adminOnly: true },
-    { to: '/backoffice/inventario',   label: 'Inventario', icon: <FaBoxes size={15}/>         },
-    { to: '/backoffice/ordenes',      label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
-    { to: '/backoffice/notificaciones',label: 'Alertas',   icon: <FaBell size={15}/>,          badge: unreadCount },
-    { to: '/backoffice/empleados',    label: 'Empleados',  icon: <FaUsers size={15}/>,          adminOnly: true },
-  ].filter(l => !l.adminOnly || isJefe())
+    { to: '/backoffice',               label: 'Dashboard',  icon: <FaTachometerAlt size={15}/>, exact: true },
+    { to: '/backoffice/inventario',    label: 'Inventario', icon: <FaBoxes size={15}/> },
+    { to: '/backoffice/ordenes',       label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
+    { to: '/backoffice/notificaciones', label: 'Alertas',   icon: <FaBell size={15}/>, badge: unreadCount },
+  ]
 
   const SideNav = ({ onClick }) => (
     <nav className="flex flex-col gap-1 p-3">

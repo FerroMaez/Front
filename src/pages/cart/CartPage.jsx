@@ -27,7 +27,7 @@ export default function CartPage() {
     setErrorMsg('')
     try {
       const orderItems = items.map(i => ({ producto_id: i.id, cantidad: i.qty }))
-      const order = await orderService.confirm({ items: orderItems })
+      const order = await orderService.confirm({ items: orderItems, user })
       setOrderId(order.id)
       clearCart()
       setConfirmModal(false)
