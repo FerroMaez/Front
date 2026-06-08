@@ -13,7 +13,7 @@ const RAZONES = [
 ]
 
 const emptyForm = {
-  linea_servicio: '', nombre: '', imagen_url: '',
+  linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
   descripcion: '', precio_unitario: '', stock_disponible: '', stock_minimo: '',
   estado: 'ACTIVO',
 }
@@ -70,6 +70,7 @@ export default function InventoryPage() {
       linea_servicio:   p.linea_servicio  || '',
       nombre:           p.nombre          || '',
       imagen_url:       p.imagen_url      || '',
+      categoria:        p.categoria       || 'OTRO',
       descripcion:      p.descripcion     || '',
       precio_unitario:  String(p.precio_unitario),
       stock_disponible: String(p.stock_disponible),
@@ -82,9 +83,9 @@ export default function InventoryPage() {
 
   const openDelete = (p) => { setSelected(p); setModal('delete') }
 
-  // Al seleccionar un producto del catálogo → auto-asigna nombre + imagen
+  // Al seleccionar un producto del catálogo → auto-asigna nombre + imagen + categoria
   const handleSelectSubcat = (subcat) => {
-    setForm(f => ({ ...f, nombre: subcat.nombre, imagen_url: subcat.imagen }))
+    setForm(f => ({ ...f, nombre: subcat.nombre, imagen_url: subcat.imagen, categoria: subcat.categoria }))
     setErrors(e => ({ ...e, nombre: '' }))
   }
 
@@ -108,7 +109,6 @@ export default function InventoryPage() {
       const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)
       const payload = {
         ...form,
-        categoria:        form.linea_servicio,
         precio_unitario:  Number(form.precio_unitario),
         stock_disponible: Number(form.stock_disponible),
         stock_minimo:     Number(form.stock_minimo),

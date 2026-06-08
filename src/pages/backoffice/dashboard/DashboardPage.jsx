@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts'
 import { FaBoxes, FaClipboardList, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaSync } from 'react-icons/fa'
-import { mockOrders, mockProducts } from '../../../features/catalog/mockProducts'
+import { dashboardService } from '../../../services/api/dashboardService'
+import { orderService } from '../../../services/api/orderService'
 import { formatCOP } from '../../../utils/formatters'
 import StockBadge from '../../../components/shared/StockBadge'
 
@@ -26,33 +27,41 @@ function KPICard({ icon, label, value, sub, color = 'brand' }) {
 
 export default function DashboardPage() {
   const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState(null)
+  const [stats,      setStats]      = useState(null)
+  const [top5,       setTop5]       = useState([])
   const [lastUpdate, setLastUpdate] = useState(new Date())
 
-  useEffect(() => { setTimeout(() => setLoading(false), 600) }, [])
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [statsData, allOrders] = await Promise.all([
+        dashboardService.getStats(),
+        orderService.getAll(),
+      ])
+      setStats(statsData)
 
-  const refresh = () => { setLoading(true); setTimeout(() => { setLoading(false); setLastUpdate(new Date()) }, 500) }
+      // Top 5 productos más cotizados (por unidades)
+      const count = {}
+      allOrders.forEach(o => (o.items || []).forEach(i => {
+        const key = i.nombre || i.nombreProducto
+        if (key) count[key] = (count[key] || 0) + (i.cantidad || 0)
+      }))
+      const sorted = Object.entries(count)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, val]) => ({ name: name.length > 20 ? name.slice(0, 18) + '…' : name, cotizaciones: val }))
+      setTop5(sorted)
+      setLastUpdate(new Date())
+    } catch (e) {
+      setError('No se pudieron cargar las métricas.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  // ── Métricas ────────────────────────────────────────────────────────
-  const total     = mockOrders.length
-  const exitosas  = mockOrders.filter(o => o.estado === 'VENTA_EXITOSA').length
-  const canceladas= mockOrders.filter(o => o.estado === 'CANCELADA').length
-  const pendientes= mockOrders.filter(o => ['PENDIENTE', 'EN_PROCESO'].includes(o.estado)).length
-  const tasa      = exitosas + canceladas > 0 ? Math.round((exitosas / (exitosas + canceladas)) * 100) : 0
-  const ingresos  = mockOrders.filter(o => o.estado === 'VENTA_EXITOSA').reduce((s, o) => s + o.total_cotizacion, 0)
-  const stockCritico = mockProducts.filter(p => p.estado === 'ACTIVO' && p.stock_disponible <= p.stock_minimo)
-
-  // Top 5 productos más cotizados
-  const productCount = {}
-  mockOrders.forEach(o => o.items?.forEach(i => {
-    productCount[i.nombre] = (productCount[i.nombre] || 0) + i.cantidad
-  }))
-  const top5 = Object.entries(productCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, val]) => ({ name: name.length > 20 ? name.slice(0, 18) + '…' : name, cotizaciones: val }))
-
-  // Pie chart exitosas vs canceladas
-  const pieData = [
-    { name: 'Ventas Exitosas', value: exitosas },
-    { name: 'Canceladas',      value: canceladas },
-  ].filter(d => d.value > 0)
+  useEffect(() => { load() }, [load])
 
   if (loading) {
     return (
@@ -65,6 +74,23 @@ export default function DashboardPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <p className="text-sm text-red-500">{error}</p>
+        <button onClick={load} className="btn-outline text-xs py-2 px-4">Reintentar</button>
+      </div>
+    )
+  }
+
+  const { totalOrdenes, ventasExitosas, ordenesCanceladas, ingresosTotales, tasaConversion, productosStockCritico } = stats
+  const tasa = Math.round(tasaConversion)
+
+  const pieData = [
+    { name: 'Ventas Exitosas', value: ventasExitosas },
+    { name: 'Canceladas',      value: ordenesCanceladas },
+  ].filter(d => d.value > 0)
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -72,17 +98,17 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Dashboard</h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--tx-3)' }}>Actualizado: {lastUpdate.toLocaleTimeString('es-CO')}</p>
         </div>
-        <button onClick={refresh} className="flex items-center gap-2 btn-outline text-xs py-2 px-4">
+        <button onClick={load} className="flex items-center gap-2 btn-outline text-xs py-2 px-4">
           <FaSync size={11}/> Actualizar
         </button>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KPICard icon={<FaClipboardList size={16}/>}  label="Total órdenes"    value={total}      sub="Historial completo" />
-        <KPICard icon={<FaCheckCircle size={16}/>}    label="Ventas exitosas"  value={exitosas}   sub={`${tasa}% tasa de conversión`} color="green" />
-        <KPICard icon={<FaTimesCircle size={16}/>}    label="Canceladas"       value={canceladas} sub="Órdenes cerradas"  color="red" />
-        <KPICard icon={<FaBoxes size={16}/>}          label="Ingresos"         value={formatCOP(ingresos)} sub="Ventas exitosas" color="brand" />
+        <KPICard icon={<FaClipboardList size={16}/>}  label="Total órdenes"    value={totalOrdenes}    sub="Historial completo" />
+        <KPICard icon={<FaCheckCircle size={16}/>}    label="Ventas exitosas"  value={ventasExitosas}  sub={`${tasa}% tasa de conversión`} color="green" />
+        <KPICard icon={<FaTimesCircle size={16}/>}    label="Canceladas"       value={ordenesCanceladas} sub="Órdenes cerradas" color="red" />
+        <KPICard icon={<FaBoxes size={16}/>}          label="Ingresos"         value={formatCOP(ingresosTotales)} sub="Ventas exitosas" color="brand" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -122,11 +148,11 @@ export default function DashboardPage() {
           )}
           <div className="grid grid-cols-2 gap-2 mt-2 text-center text-xs">
             <div className="p-2 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
-              <p className="font-bold text-lg text-green-600 dark:text-green-400">{exitosas}</p>
+              <p className="font-bold text-lg text-green-600 dark:text-green-400">{ventasExitosas}</p>
               <p style={{ color: 'var(--tx-3)' }}>Exitosas</p>
             </div>
             <div className="p-2 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
-              <p className="font-bold text-lg text-red-500">{canceladas}</p>
+              <p className="font-bold text-lg text-red-500">{ordenesCanceladas}</p>
               <p style={{ color: 'var(--tx-3)' }}>Canceladas</p>
             </div>
           </div>
@@ -138,17 +164,17 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 mb-4">
           <FaExclamationTriangle className="text-yellow-500" size={16}/>
           <h3 className="font-bold" style={{ color: 'var(--tx-1)' }}>Alerta de Stock Crítico</h3>
-          {stockCritico.length > 0 && (
+          {productosStockCritico.length > 0 && (
             <span className="ml-auto px-2.5 py-0.5 bg-red-500/15 text-red-500 text-xs font-bold rounded-full border border-red-500/25">
-              {stockCritico.length} productos
+              {productosStockCritico.length} productos
             </span>
           )}
         </div>
-        {stockCritico.length === 0 ? (
+        {productosStockCritico.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--tx-3)' }}>✅ Todos los productos tienen stock suficiente.</p>
         ) : (
           <div className="space-y-2">
-            {stockCritico.sort((a, b) => a.stock_disponible - b.stock_disponible).map(p => (
+            {productosStockCritico.sort((a, b) => a.stock_disponible - b.stock_disponible).map(p => (
               <div key={p.id} className="flex items-center gap-4 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
                 <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--bg-raised)' }}>
                   <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-0.5" onError={e => { e.target.src = '/newLogo3.jpeg' }} />

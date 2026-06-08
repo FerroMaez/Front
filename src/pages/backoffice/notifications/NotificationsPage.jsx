@@ -1,32 +1,54 @@
 import { useEffect, useState } from 'react'
 import { FaBell, FaExclamationTriangle, FaShoppingCart, FaCheck, FaTrash } from 'react-icons/fa'
 import { useNotificationStore } from '../../../store/notificationStore'
-import { mockProducts } from '../../../features/catalog/mockProducts'
+import { websocketService } from '../../../services/api/websocketService'
+import { dashboardService } from '../../../services/api/dashboardService'
+import { formatCOP } from '../../../utils/formatters'
+
+let stockSeeded = false
 
 export default function NotificationsPage() {
   const { notifications, unreadCount, markRead, markAllRead, clearAll, addNotification } = useNotificationStore()
   const [wsStatus, setWsStatus] = useState('connecting')
 
-  // Simular WebSocket — en producción conectaría al endpoint real
   useEffect(() => {
-    setWsStatus('connected')
-    const stockAlerts = mockProducts
-      .filter(p => p.stock_disponible <= p.stock_minimo && p.stock_disponible >= 0)
-      .slice(0, 3)
+    // Carga alertas de stock crítico actuales al entrar (solo una vez por sesión)
+    if (!stockSeeded) {
+      stockSeeded = true
+      dashboardService.getStats().then(stats => {
+        stats.productosStockCritico.forEach(p => {
+          addNotification({
+            tipo: 'STOCK_MINIMO',
+            titulo: `⚠️ Stock bajo: ${p.nombre}`,
+            descripcion: `${p.stock_disponible} uds disponibles (mínimo: ${p.stock_minimo})`,
+            productoId: p.id,
+          })
+        })
+      }).catch(() => {})
+    }
 
-    stockAlerts.forEach((p, i) => {
-      setTimeout(() => {
+    websocketService.connect({
+      onStatusChange: setWsStatus,
+      onAlerta: (data) => {
         addNotification({
           tipo: 'STOCK_MINIMO',
-          titulo: `⚠️ Stock bajo: ${p.nombre}`,
-          descripcion: `${p.stock_disponible} unidades disponibles (Mínimo: ${p.stock_minimo})`,
-          productoId: p.id,
+          titulo: `⚠️ Stock bajo: ${data.nombre}`,
+          descripcion: `${data.stockDisponible} uds disponibles (mínimo: ${data.stockMinimo})`,
+          productoId: data.productoId,
         })
-      }, i * 800)
+      },
+      onNuevaOrden: (data) => {
+        addNotification({
+          tipo: 'NUEVA_ORDEN',
+          titulo: `🛒 Nueva cotización #${data.ordenId}`,
+          descripcion: `Total: ${formatCOP(data.total)}`,
+          ordenId: data.ordenId,
+        })
+      },
     })
 
-    return () => setWsStatus('disconnected')
-  }, [])  // eslint-disable-line
+    return () => websocketService.disconnect()
+  }, []) // eslint-disable-line
 
   const TYPE_CONFIG = {
     STOCK_MINIMO: { icon: <FaExclamationTriangle size={14}/>, bg: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-300' },
@@ -41,8 +63,8 @@ export default function NotificationsPage() {
           <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>
             {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
             {' · '}
-            <span className={`font-semibold ${wsStatus === 'connected' ? 'text-green-500' : 'text-red-500'}`}>
-              {wsStatus === 'connected' ? '● Conectado' : '○ Reconectando…'}
+            <span className={`font-semibold ${wsStatus === 'connected' ? 'text-green-500' : 'text-yellow-500'}`}>
+              {wsStatus === 'connected' ? '● En vivo' : '○ Conectando…'}
             </span>
           </p>
         </div>
@@ -58,15 +80,14 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* Info WebSocket */}
+      {/* Estado WebSocket */}
       <div className="mb-5 p-4 rounded-2xl text-sm" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
         <div className="flex items-center gap-2 mb-1">
           <FaBell className="text-brand-500" size={14}/>
-          <p className="font-semibold" style={{ color: 'var(--tx-1)' }}>Canal WebSocket — /topic/alertas & /topic/ordenes</p>
+          <p className="font-semibold" style={{ color: 'var(--tx-1)' }}>Tiempo real — /topic/alertas & /topic/ordenes</p>
         </div>
         <p className="text-xs" style={{ color: 'var(--tx-3)' }}>
-          Recibirás notificaciones automáticas cuando: un producto alcance su stock mínimo, o un cliente confirme una nueva cotización.
-          La latencia objetivo es &lt;500ms. Si la conexión se pierde, se intentará reconexión automática.
+          Recibirás alertas automáticas cuando un producto alcance stock mínimo o un cliente confirme una cotización.
         </p>
       </div>
 

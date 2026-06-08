@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from '../../store/authStore'
 import { useCartStore } from '../../store/cartStore'
 import { orderService } from '../../services/api/orderService'
+import { authService } from '../../services/api/authService'
 import { formatCOP, formatDate } from '../../utils/formatters'
 
 const STATUS_CONFIG = {
@@ -21,21 +22,28 @@ export default function ProfilePage() {
   const { addItem, openCart, getCount } = useCartStore()
   const cartCount = getCount()
 
-  const [orders,  setOrders]  = useState([])
-  const [editing, setEditing] = useState(false)
-  const [form,    setForm]    = useState({ nombre: user?.nombre || '', telefono: user?.telefono || '' })
-  const [saved,   setSaved]   = useState(false)
+  const [orders,    setOrders]    = useState([])
+  const [editing,   setEditing]   = useState(false)
+  const [form,      setForm]      = useState({ nombre: user?.nombre || '', telefono: user?.telefono || '' })
+  const [saved,     setSaved]     = useState(false)
+  const [saveErr,   setSaveErr]   = useState('')
   const [reorderMsg, setReorderMsg] = useState('')
 
   useEffect(() => {
     orderService.getMyOrders().then(setOrders).catch(() => {})
   }, [])
 
-  const handleSave = () => {
-    setUser({ ...user, ...form })
-    setSaved(true)
-    setEditing(false)
-    setTimeout(() => setSaved(false), 2500)
+  const handleSave = async () => {
+    setSaveErr('')
+    try {
+      const updated = await authService.updateProfile({ nombre: form.nombre, telefono: form.telefono })
+      setUser({ ...user, ...updated })
+      setSaved(true)
+      setEditing(false)
+      setTimeout(() => setSaved(false), 2500)
+    } catch {
+      setSaveErr('No se pudo actualizar el perfil. Intenta de nuevo.')
+    }
   }
 
   const handleReorder = (order) => {
@@ -142,6 +150,12 @@ export default function ProfilePage() {
               <div className="mb-4 flex items-center gap-2 text-xs font-medium rounded-xl p-3"
                 style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#16a34a' }}>
                 <FaCheck size={11} /> Datos actualizados correctamente
+              </div>
+            )}
+
+            {saveErr && (
+              <div className="mb-4 p-3 rounded-xl text-xs text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20">
+                {saveErr}
               </div>
             )}
 

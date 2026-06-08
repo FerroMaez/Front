@@ -1,48 +1,53 @@
 import api from './axiosInstance'
-import { mockProducts } from '../../features/catalog/mockProducts'
 
-const USE_MOCK = true
+const toBackendPayload = (p) => ({
+  nombre: p.nombre,
+  descripcion: p.descripcion,
+  imagenUrl: p.imagen_url || p.imagenUrl,
+  precioUnitario: p.precio_unitario ?? p.precioUnitario,
+  stockDisponible: p.stock_disponible ?? p.stockDisponible,
+  stockMinimo: p.stock_minimo ?? p.stockMinimo,
+  lineaServicio: p.linea_servicio || p.lineaServicio,
+  categoria: p.categoria,
+})
+
+const mapProduct = (p) => ({
+  id: p.id,
+  nombre: p.nombre,
+  descripcion: p.descripcion,
+  imagen_url: p.imagenUrl,
+  precio_unitario: p.precioUnitario,
+  stock_disponible: p.stockDisponible,
+  stock_minimo: p.stockMinimo,
+  stock_reservado: p.stockReservado,
+  linea_servicio: p.lineaServicio,
+  categoria: p.categoria,
+  estado: p.estado,
+  fecha_creacion: p.fechaCreacion,
+  ultima_modificacion: p.ultimaModificacion,
+})
 
 export const productService = {
   getAll: async (params = {}) => {
-    if (USE_MOCK) {
-      let data = mockProducts.filter(p => p.estado === 'ACTIVO')
-      if (params.categoria) data = data.filter(p => p.categoria === params.categoria)
-      if (params.search)    data = data.filter(p => p.nombre.toLowerCase().includes(params.search.toLowerCase()))
-      return { data, total: data.length }
-    }
-    return api.get('/productos', { params }).then(r => r.data)
+    const list = await api.get('/productos', { params: { search: params.search } }).then(r => r.data)
+    let data = list.map(mapProduct)
+    if (params.categoria) data = data.filter(p => p.categoria === params.categoria)
+    return { data, total: data.length }
   },
 
   getById: async (id) => {
-    if (USE_MOCK) return mockProducts.find(p => p.id === Number(id))
-    return api.get(`/productos/${id}`).then(r => r.data)
+    return api.get(`/productos/${id}`).then(r => mapProduct(r.data))
   },
 
   create: async (payload) => {
-    if (USE_MOCK) {
-      const newP = { ...payload, id: Date.now(), stock_reservado: 0, fecha_creacion: new Date().toISOString(), ultima_modificacion: new Date().toISOString() }
-      mockProducts.push(newP)
-      return newP
-    }
-    return api.post('/productos', payload).then(r => r.data)
+    return api.post('/productos', toBackendPayload(payload)).then(r => mapProduct(r.data))
   },
 
   update: async (id, payload) => {
-    if (USE_MOCK) {
-      const idx = mockProducts.findIndex(p => p.id === Number(id))
-      if (idx >= 0) { mockProducts[idx] = { ...mockProducts[idx], ...payload, ultima_modificacion: new Date().toISOString() } }
-      return mockProducts[idx]
-    }
-    return api.put(`/productos/${id}`, payload).then(r => r.data)
+    return api.put(`/productos/${id}`, toBackendPayload(payload)).then(r => mapProduct(r.data))
   },
 
   delete: async (id) => {
-    if (USE_MOCK) {
-      const idx = mockProducts.findIndex(p => p.id === Number(id))
-      if (idx >= 0) mockProducts[idx].estado = 'INACTIVO'
-      return { ok: true }
-    }
-    return api.delete(`/productos/${id}`).then(r => r.data)
+    return api.delete(`/productos/${id}`).then(() => ({ ok: true }))
   },
 }

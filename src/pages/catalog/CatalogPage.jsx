@@ -109,7 +109,7 @@ export default function CatalogPage() {
             <div key={p.id} className="flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
               style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', boxShadow: '0 2px 12px -4px rgba(140,144,59,0.06)' }}>
               {/* Imagen */}
-              <div className="relative h-44 overflow-hidden" style={{ backgroundColor: 'var(--bg-surface)' }}>
+              <div className="relative h-44 overflow-hidden bg-white">
                 <img src={p.imagen_url} alt={p.nombre}
                   className="w-full h-full object-contain p-4 transition-transform duration-300 hover:scale-105"
                   onError={e => { e.target.src = '/newLogo3.jpeg' }} />

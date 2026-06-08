@@ -41,7 +41,7 @@ export default function ServicePage() {
 
         {/* Imagen principal */}
         <div className="relative rounded-2xl overflow-hidden aspect-[4/3] flex items-center justify-center"
-          style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+          style={{ backgroundColor: 'white', border: '1px solid var(--bd-1)' }}>
           <img
             src={selected ? selected.imagen : product.imagen}
             alt={selected ? selected.nombre : product.nombre}
@@ -122,8 +122,7 @@ export default function ServicePage() {
                   boxShadow: isActive ? '0 4px 20px -4px rgba(140,144,59,0.25)' : 'none',
                 }}
               >
-                <div className="w-full aspect-square rounded-xl overflow-hidden"
-                  style={{ backgroundColor: 'var(--bg-surface)' }}>
+                <div className="w-full aspect-square rounded-xl overflow-hidden bg-white">
                   <img
                     src={sub.imagen}
                     alt={sub.nombre}

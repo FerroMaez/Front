@@ -35,7 +35,7 @@ function RequireAuth({ children }) {
 function RequireJefe({ children }) {
   const { user, isAuthenticated } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (user?.rol !== 'JEFE') return <Navigate to="/backoffice/inventario" replace />
+  if (user?.rol !== 'JEFE') return <Navigate to="/" replace />
   return <>{children}</>
 }
 

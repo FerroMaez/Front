@@ -2,12 +2,14 @@ import api from './axiosInstance'
 import { companyInfo } from '../../features/catalog/catalogData'
 import { formatCOP } from '../../utils/formatters'
 
-const USE_MOCK = true
-
 export const whatsappService = {
   notifyOrder: async ({ order, items, user }) => {
     const itemLines = items
-      .map(i => `• ${i.nombre} ×${i.qty ?? i.cantidad} — ${formatCOP((i.precio_unitario || 0) * (i.qty ?? i.cantidad))}`)
+      .map(i => {
+        const qty = Number(i.qty ?? i.cantidad ?? 0)
+        const linea = Number(i.subtotal) || Number(i.precio_unitario_momento || i.precio_unitario || 0) * qty
+        return `• ${i.nombre || i.nombreProducto} ×${qty} — ${formatCOP(linea)}`
+      })
       .join('\n')
 
     const mensaje = [
@@ -21,11 +23,6 @@ export const whatsappService = {
       ``,
       `*Total estimado:* ${formatCOP(order.total_cotizacion)}`,
     ].join('\n')
-
-    if (USE_MOCK) {
-      console.info('[WhatsApp] Notificación enviada al jefe:', mensaje)
-      return { ok: true }
-    }
 
     return api.post('/notificaciones/whatsapp', {
       numero: companyInfo.whatsapp,
