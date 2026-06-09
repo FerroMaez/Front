@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import { authService } from '../../services/api/authService'
@@ -15,6 +15,11 @@ export default function LoginPage() {
   const [apiErr,  setApiErr]  = useState('')
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
+
+  useEffect(() => {
+    if (location.state?.mensaje) setSuccessMsg(location.state.mensaje)
+  }, [location.state])
 
   const validate = () => {
     const e = {}
@@ -64,6 +69,12 @@ export default function LoginPage() {
             <p>Jefe: <span className="font-mono">jefe@manhid.com</span> / <span className="font-mono">123456</span></p>
           </div>
 
+          {successMsg && (
+            <div className="mb-4 p-3 rounded-xl text-sm text-green-600 dark:text-green-400 bg-green-500/10 border border-green-500/20">
+              {successMsg}
+            </div>
+          )}
+
           {apiErr && (
             <div className="mb-4 p-3 rounded-xl text-sm text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20">
               {apiErr}
@@ -103,6 +114,11 @@ export default function LoginPage() {
                 </button>
               </div>
               {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
+              <div className="text-right mt-1">
+                <Link to="/recuperar-password" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             <button type="submit" disabled={loading}
