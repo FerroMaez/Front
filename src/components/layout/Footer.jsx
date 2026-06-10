@@ -88,7 +88,12 @@ export default function Footer() {
         <div className="mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-gray-600"
           style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <p>© {new Date().getFullYear()} MANHID. Todos los derechos reservados.</p>
-          <p>Bogotá, Colombia · <span className="text-brand-600">#8C903B</span></p>
+          <div className="flex items-center gap-4">
+            <Link to="/politica-privacidad" className="hover:text-brand-400 transition-colors">
+              Política de Privacidad
+            </Link>
+            <p>Bogotá, Colombia · <span className="text-brand-600">#8C903B</span></p>
+          </div>
         </div>
       </div>
     </footer>

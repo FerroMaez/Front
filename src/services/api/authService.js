@@ -28,4 +28,12 @@ export const authService = {
   updateProfile: async ({ nombre, telefono }) => {
     return api.put('/usuarios/perfil', { nombre, telefono }).then(r => r.data)
   },
+
+  solicitarRecuperacion: async (email) => {
+    return api.post('/auth/recuperar-password', { email })
+  },
+
+  resetearPassword: async (token, nuevaPassword) => {
+    return api.post('/auth/reset-password', { token, nuevaPassword })
+  },
 }

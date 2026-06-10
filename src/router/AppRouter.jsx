@@ -12,8 +12,11 @@ import ContactPage       from '../pages/contact/ContactPage'
 import AboutPage         from '../pages/about/AboutPage'
 
 // Auth
-import LoginPage         from '../pages/auth/LoginPage'
-import RegisterPage      from '../pages/auth/RegisterPage'
+import LoginPage              from '../pages/auth/LoginPage'
+import RegisterPage           from '../pages/auth/RegisterPage'
+import RecuperarPasswordPage    from '../pages/auth/RecuperarPasswordPage'
+import ResetPasswordPage        from '../pages/auth/ResetPasswordPage'
+import PoliticaPrivacidadPage   from '../pages/legal/PoliticaPrivacidadPage'
 
 // Client private
 import CartPage          from '../pages/cart/CartPage'
@@ -51,8 +54,11 @@ export default function AppRouter() {
           <Route path="/mantenimientos" element={<MaintenancePage />} />
           <Route path="/contacto"       element={<ContactPage />} />
           <Route path="/quienes-somos"  element={<AboutPage />} />
-          <Route path="/login"          element={<LoginPage />} />
-          <Route path="/registro"       element={<RegisterPage />} />
+          <Route path="/login"               element={<LoginPage />} />
+          <Route path="/registro"            element={<RegisterPage />} />
+          <Route path="/recuperar-password"  element={<RecuperarPasswordPage />} />
+          <Route path="/reset-password"      element={<ResetPasswordPage />} />
+          <Route path="/politica-privacidad" element={<PoliticaPrivacidadPage />} />
 
           {/* ── Cliente autenticado ───────────────────── */}
           <Route path="/carrito" element={<RequireAuth><CartPage /></RequireAuth>} />
