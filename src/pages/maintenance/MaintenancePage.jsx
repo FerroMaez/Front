@@ -88,26 +88,31 @@ export default function MaintenancePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-12">
-        <div className="section-badge mb-4">Servicio especializado</div>
-        <h1 className="section-title">Mantenimientos</h1>
-        <p className="section-subtitle">Servicio preventivo y correctivo para tus sistemas hidráulicos</p>
+      <div className="relative overflow-hidden rounded-[2rem] p-8 sm:p-10 mb-10"
+        style={{ border: '1px solid var(--bd-1)', backgroundColor: 'var(--bg-raised)' }}>
+        <div className="absolute inset-0 mesh-flow opacity-[0.16] dark:opacity-25 pointer-events-none" />
+        <div className="blob w-72 h-72 -top-16 -right-10 bg-aqua-500 opacity-30 animate-flow-alt" />
+        <div className="relative">
+          <div className="section-badge mb-4">Servicio especializado</div>
+          <h1 className="section-title">Manteni<span className="gradient-text">mientos</span></h1>
+          <p className="section-subtitle max-w-lg">Servicio preventivo y correctivo para tus sistemas hidráulicos</p>
+        </div>
       </div>
 
       {/* Hero imagen */}
-      <div className="relative rounded-2xl overflow-hidden mb-14 group" style={{ border: '1px solid var(--bd-1)' }}>
+      <div className="relative rounded-3xl overflow-hidden mb-14 group shadow-float" style={{ border: '1px solid var(--bd-1)' }}>
         <img src="/mantenimiento/1.png" alt="Mantenimiento hidráulico"
           className="w-full h-64 md:h-80 object-cover group-hover:scale-105 transition-transform duration-700"
           onError={e => { e.target.src = '/sector.jpeg' }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(29,30,12,0.88) 40%, rgba(29,30,12,0.3) 80%, transparent)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(8,20,30,0.9) 38%, rgba(8,20,30,0.35) 78%, transparent)' }} />
         <div className="absolute inset-0 flex items-center p-8 lg:p-14">
           <div className="max-w-lg">
             <div className="section-badge mb-3">Servicio destacado</div>
             <h2 className="text-2xl lg:text-3xl font-bold text-white mb-3">Mantenimiento a Válvula Reguladora de Presión</h2>
-            <p className="text-white/65 text-sm lg:text-base mb-5">Conserva la eficiencia de tu sistema hidráulico con nuestros servicios especializados.</p>
+            <p className="text-white/70 text-sm lg:text-base mb-5">Conserva la eficiencia de tu sistema hidráulico con nuestros servicios especializados.</p>
             <a href={`https://wa.me/${companyInfo.whatsapp.replace(/\D/g,'')}?text=${waMessage}`}
               target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-sm transition-all hover:-translate-y-px">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full text-sm transition-all hover:-translate-y-0.5">
               <FaWhatsapp size={15}/> Consultar por WhatsApp
             </a>
           </div>
@@ -218,8 +223,8 @@ export default function MaintenancePage() {
             { icon: <FaShieldAlt size={18}/>,   title: 'Correctivo',  desc: 'Diagnóstico y reparación de fallas para restablecer el funcionamiento.' },
             { icon: <FaCalendarAlt size={18}/>, title: 'Programado',  desc: 'Planes anuales con visitas periódicas y seguimiento de historial.' },
           ].map(({ icon, title, desc }) => (
-            <div key={title} className="flex gap-4 p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-brand-600 dark:text-brand-300 flex-shrink-0" style={{ backgroundColor: 'rgba(140,144,59,0.12)' }}>
+            <div key={title} className="flex gap-4 p-5 rounded-2xl transition-all hover:-translate-y-0.5" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-aqua-600 dark:text-aqua-300 flex-shrink-0" style={{ backgroundColor: 'rgba(6,182,212,0.14)' }}>
                 {icon}
               </div>
               <div>
@@ -234,7 +239,7 @@ export default function MaintenancePage() {
             <p className="text-xs mb-4 text-green-700 dark:text-green-400">Escríbenos por WhatsApp</p>
             <a href={`https://wa.me/${companyInfo.whatsapp.replace(/\D/g,'')}?text=${waMessage}`}
               target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold text-sm rounded-xl transition-all hover:-translate-y-px">
+              className="flex items-center justify-center gap-2 w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold text-sm rounded-full transition-all hover:-translate-y-0.5">
               <FaWhatsapp size={15}/> Chatear ahora
             </a>
           </div>

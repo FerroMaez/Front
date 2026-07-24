@@ -3,13 +3,9 @@ import { useEffect } from 'react'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import WhatsAppFloat from '../shared/WhatsAppFloat'
-import CartDrawer from '../shared/CartDrawer'
-import { useAuthStore } from '../../store/authStore'
 
 export default function PageWrapper() {
-  const { pathname }       = useLocation()
-  const { isAuthenticated, user } = useAuthStore()
-  const isCliente = user?.rol === 'CLIENTE'
+  const { pathname } = useLocation()
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -23,7 +19,6 @@ export default function PageWrapper() {
       </main>
       <Footer />
       <WhatsAppFloat />
-      {isAuthenticated && isCliente && <CartDrawer />}
     </div>
   )
 }

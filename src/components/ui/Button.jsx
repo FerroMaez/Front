@@ -1,10 +1,10 @@
 import clsx from 'clsx'
 
 const variants = {
-  primary: 'bg-brand-600 hover:bg-brand-500 text-white shadow-md hover:shadow-brand-500/30',
-  outline: 'border border-brand-500 text-brand-400 hover:bg-brand-600/20',
-  ghost: 'text-brand-300 hover:text-white hover:bg-white/10',
-  danger: 'bg-red-600 hover:bg-red-500 text-white',
+  primary: 'bg-brand-600 hover:bg-brand-500 text-white shadow-md hover:shadow-brand-500/30 hover:-translate-y-px',
+  outline: 'border border-brand-500/50 text-brand-600 dark:text-brand-300 hover:bg-brand-500/10 hover:border-brand-500',
+  ghost: 'text-brand-600 dark:text-brand-300 hover:bg-brand-500/10',
+  danger: 'bg-red-600 hover:bg-red-500 text-white shadow-md',
 }
 
 const sizes = {
@@ -19,9 +19,8 @@ export default function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center gap-2 rounded-xl font-semibold transition-all duration-200',
-        'focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-brand-900',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200',
+        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0',
         variants[variant],
         sizes[size],
         className,

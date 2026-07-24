@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import { authService } from '../../services/api/authService'
 import { useAuthStore } from '../../store/authStore'
@@ -53,20 +53,12 @@ export default function LoginPage() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="rounded-3xl p-8 shadow-xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+        <div className="rounded-3xl p-8 shadow-xl animate-fadein" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
           {/* Header */}
           <div className="text-center mb-8">
             <img src="/newLogo3.jpeg" alt="MANHID" className="w-14 h-14 rounded-2xl object-cover mx-auto mb-4 ring-2 ring-brand-500/40" />
             <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Iniciar Sesión</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--tx-3)' }}>Accede a tu cuenta de MANHID</p>
-          </div>
-
-          {/* Demo credentials hint */}
-          <div className="mb-5 p-3 rounded-xl text-xs" style={{ backgroundColor: 'rgba(140,144,59,0.08)', border: '1px solid rgba(140,144,59,0.2)', color: 'var(--tx-2)' }}>
-            <p className="font-semibold mb-1" style={{ color: 'var(--tx-1)' }}>Credenciales de prueba:</p>
-            <p>Cliente: <span className="font-mono">cliente@demo.com</span> / <span className="font-mono">123456</span></p>
-            <p>Empleado: <span className="font-mono">empleado@manhid.com</span> / <span className="font-mono">123456</span></p>
-            <p>Jefe: <span className="font-mono">jefe@manhid.com</span> / <span className="font-mono">123456</span></p>
+            <p className="text-sm mt-1" style={{ color: 'var(--tx-3)' }}>Acceso exclusivo del administrador</p>
           </div>
 
           {successMsg && (
@@ -114,11 +106,6 @@ export default function LoginPage() {
                 </button>
               </div>
               {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
-              <div className="text-right mt-1">
-                <Link to="/recuperar-password" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
             </div>
 
             <button type="submit" disabled={loading}
@@ -126,13 +113,6 @@ export default function LoginPage() {
               {loading ? 'Ingresando...' : 'Iniciar Sesión'}
             </button>
           </form>
-
-          <p className="text-center text-sm mt-6" style={{ color: 'var(--tx-3)' }}>
-            ¿No tienes cuenta?{' '}
-            <Link to="/registro" className="text-brand-600 dark:text-brand-400 font-semibold hover:underline">
-              Regístrate
-            </Link>
-          </p>
         </div>
       </div>
     </div>

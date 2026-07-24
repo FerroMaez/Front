@@ -25,8 +25,8 @@ export const authService = {
     return api.post('/auth/logout').catch(() => {})
   },
 
-  updateProfile: async ({ nombre, telefono }) => {
-    return api.put('/usuarios/perfil', { nombre, telefono }).then(r => r.data)
+  updateProfile: async (data) => {
+    return api.put('/usuarios/perfil', data).then(r => r.data)
   },
 
   solicitarRecuperacion: async (email) => {

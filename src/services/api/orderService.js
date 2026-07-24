@@ -8,6 +8,11 @@ const mapOrder = (o) => ({
   motivo_cancelacion: o.motivoCancelacion,
   fecha_creacion: o.fechaCreacion,
   fecha_cierre: o.fechaCierre,
+  facturacion_estado: o.facturacionEstado,
+  cufe: o.cufe,
+  pdf_url: o.pdfUrl,
+  xml_url: o.xmlUrl,
+  error_facturacion: o.errorFacturacion,
   cliente: o.clienteInfo ? {
     nombre:   o.clienteInfo.nombre,
     telefono: o.clienteInfo.telefono,
@@ -45,5 +50,28 @@ export const orderService = {
       estado,
       motivoCancelacion: motivo_cancelacion,
     }).then(r => mapOrder(r.data))
+  },
+
+  aprobar: async (id) => {
+    return api.post(`/ordenes/${id}/aprobar`).then(r => mapOrder(r.data))
+  },
+
+  ventaFisica: async (items, cliente) => {
+    return api.post('/ordenes/venta-fisica', {
+      items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
+      cliente,
+    }).then(r => mapOrder(r.data))
+  },
+
+  exportExcel: async () => {
+    const response = await api.get('/ordenes/export/excel', { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([response.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ventas_${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   },
 }

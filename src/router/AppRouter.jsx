@@ -13,13 +13,9 @@ import AboutPage         from '../pages/about/AboutPage'
 
 // Auth
 import LoginPage              from '../pages/auth/LoginPage'
-import RegisterPage           from '../pages/auth/RegisterPage'
-import RecuperarPasswordPage    from '../pages/auth/RecuperarPasswordPage'
-import ResetPasswordPage        from '../pages/auth/ResetPasswordPage'
 import PoliticaPrivacidadPage   from '../pages/legal/PoliticaPrivacidadPage'
 
 // Client private
-import CartPage          from '../pages/cart/CartPage'
 import ProfilePage       from '../pages/profile/ProfilePage'
 
 // Backoffice
@@ -55,13 +51,9 @@ export default function AppRouter() {
           <Route path="/contacto"       element={<ContactPage />} />
           <Route path="/quienes-somos"  element={<AboutPage />} />
           <Route path="/login"               element={<LoginPage />} />
-          <Route path="/registro"            element={<RegisterPage />} />
-          <Route path="/recuperar-password"  element={<RecuperarPasswordPage />} />
-          <Route path="/reset-password"      element={<ResetPasswordPage />} />
           <Route path="/politica-privacidad" element={<PoliticaPrivacidadPage />} />
 
-          {/* ── Cliente autenticado ───────────────────── */}
-          <Route path="/carrito" element={<RequireAuth><CartPage /></RequireAuth>} />
+          {/* ── Usuario autenticado ───────────────────── */}
           <Route path="/perfil"  element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/historial" element={<RequireAuth><ProfilePage /></RequireAuth>} />
         </Route>

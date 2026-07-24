@@ -11,15 +11,17 @@ const COLORS = ['#8C903B', '#ef4444']
 
 function KPICard({ icon, label, value, sub, color = 'brand' }) {
   const colors = { brand: 'text-brand-600 dark:text-brand-300', green: 'text-green-600 dark:text-green-400', red: 'text-red-500', yellow: 'text-yellow-600 dark:text-yellow-300' }
+  const iconBg = { brand: 'rgba(140,144,59,0.12)', green: 'rgba(34,197,94,0.12)', red: 'rgba(239,68,68,0.12)', yellow: 'rgba(234,179,8,0.12)' }
   return (
-    <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+    <div className="rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5"
+      style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', boxShadow: '0 1px 3px -1px rgba(140,144,59,0.06)' }}>
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(140,144,59,0.12)' }}>
-          <span className={`text-brand-500 ${colors[color]}`}>{icon}</span>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: iconBg[color] }}>
+          <span className={colors[color]}>{icon}</span>
         </div>
         <p className="text-sm font-medium" style={{ color: 'var(--tx-2)' }}>{label}</p>
       </div>
-      <p className={`text-3xl font-bold ${colors[color]}`}>{value}</p>
+      <p className={`text-3xl font-bold tracking-tight ${colors[color]}`}>{value}</p>
       {sub && <p className="text-xs mt-1" style={{ color: 'var(--tx-3)' }}>{sub}</p>}
     </div>
   )

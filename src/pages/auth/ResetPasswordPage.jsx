@@ -34,7 +34,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="rounded-3xl p-8 shadow-xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+        <div className="rounded-3xl p-8 shadow-xl animate-fadein" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
           <div className="text-center mb-8">
             <img src="/newLogo3.jpeg" alt="MANHID" className="w-14 h-14 rounded-2xl object-cover mx-auto mb-4 ring-2 ring-brand-500/40" />
             <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Nueva contraseña</h1>
