@@ -41,5 +41,5 @@ jobs:
           # deja "./". Si usas la cuenta principal, cambia a la ruta completa
           # (p.ej. domains/mantenimientos-hidraulicos-km.cloud/public_html/).
           local-dir: ./dist/
-          server-dir: ./
+          server-dir: domains/mantenimientos-hidraulicos-km.cloud/public_html/
           dangerous-clean-slate: false
