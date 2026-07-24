@@ -50,9 +50,13 @@ export default function InventoryPage() {
   const [toast,       setToast]       = useState('')
 
   const load = useCallback(async () => {
-    const { data } = await productService.getAll({ search })
-    const filtered = lineaFiltro ? data.filter(p => p.linea_servicio === lineaFiltro) : data
-    setProducts(filtered)
+    try {
+      const { data } = await productService.getAll({ search })
+      const filtered = lineaFiltro ? data.filter(p => p.linea_servicio === lineaFiltro) : data
+      setProducts(filtered)
+    } catch {
+      // mantiene la lista anterior si falla la red
+    }
   }, [search, lineaFiltro])
 
   useEffect(() => { load() }, [load])
@@ -184,7 +188,7 @@ export default function InventoryPage() {
       {/* Tabla */}
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--bd-1)' }}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm data-table">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--bd-1)' }}>
                 {['Producto', 'Línea de servicio', 'Precio', 'Stock', 'Estado', ''].map(h => (
@@ -200,11 +204,10 @@ export default function InventoryPage() {
                   </td>
                 </tr>
               )}
-              {products.map((p, i) => {
+              {products.map((p) => {
                 const linea = LINEAS_SERVICIO.find(l => l.value === (p.linea_servicio || p.categoria))
                 return (
-                  <tr key={p.id}
-                    style={{ borderBottom: i < products.length - 1 ? '1px solid var(--bd-1)' : 'none', backgroundColor: 'var(--bg-raised)' }}>
+                  <tr key={p.id}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0"

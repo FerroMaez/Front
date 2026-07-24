@@ -27,27 +27,27 @@ export default function NotificationsPage() {
       }).catch(() => {})
     }
 
-    websocketService.connect({
-      onStatusChange: setWsStatus,
-      onAlerta: (data) => {
-        addNotification({
-          tipo: 'STOCK_MINIMO',
-          titulo: `⚠️ Stock bajo: ${data.nombre}`,
-          descripcion: `${data.stockDisponible} uds disponibles (mínimo: ${data.stockMinimo})`,
-          productoId: data.productoId,
-        })
-      },
-      onNuevaOrden: (data) => {
-        addNotification({
-          tipo: 'NUEVA_ORDEN',
-          titulo: `🛒 Nueva cotización #${data.ordenId}`,
-          descripcion: `Total: ${formatCOP(data.total)}`,
-          ordenId: data.ordenId,
-        })
-      },
+    websocketService.connect()
+    const unsubStatus = websocketService.onStatus(setWsStatus)
+    const unsubAlerta = websocketService.onAlerta((data) => {
+      addNotification({
+        tipo: 'STOCK_MINIMO',
+        titulo: `⚠️ Stock bajo: ${data.nombre}`,
+        descripcion: `${data.stockDisponible} uds disponibles (mínimo: ${data.stockMinimo})`,
+        productoId: data.productoId,
+      })
+    })
+    const unsubOrden = websocketService.onOrden((data) => {
+      addNotification({
+        tipo: 'NUEVA_ORDEN',
+        titulo: `🛒 Nueva cotización #${data.ordenId}`,
+        descripcion: `Total: ${formatCOP(data.total)}`,
+        ordenId: data.ordenId,
+      })
     })
 
-    return () => websocketService.disconnect()
+    // No desconectamos: la conexión se comparte con otras páginas (Órdenes) y persiste en la sesión
+    return () => { unsubStatus(); unsubAlerta(); unsubOrden() }
   }, []) // eslint-disable-line
 
   const TYPE_CONFIG = {

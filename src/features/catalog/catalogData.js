@@ -86,7 +86,7 @@ export const companyInfo = {
   phone1: '310 756 5366',
   phone2: '313 494 9118',
   email: 'MANHIDKM@GMAIL.COM',
-  address: 'Carrera 23 # 12 - 85, Los Mártires',
+  address: 'Carrera 23 # 12-93, Los Mártires',
   city: 'Bogotá, D.C.',
   whatsapp: '+573134949118',
   hours: {

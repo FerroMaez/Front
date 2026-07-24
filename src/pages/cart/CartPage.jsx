@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FaTrash, FaWhatsapp, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa'
+import { FaTrash, FaWhatsapp, FaCheckCircle, FaExclamationTriangle, FaFileInvoice } from 'react-icons/fa'
 import { IoAddOutline, IoRemoveOutline } from 'react-icons/io5'
 import { useCartStore } from '../../store/cartStore'
 import { useAuthStore } from '../../store/authStore'
@@ -33,7 +33,8 @@ export default function CartPage() {
       setConfirmModal(false)
       setSuccessModal(true)
     } catch (err) {
-      setErrorMsg(err?.response?.data?.message || 'Error al procesar la reserva. Intenta de nuevo.')
+      const serverMsg = err?.response?.data?.error || err?.response?.data?.message
+      setErrorMsg(serverMsg || 'Error al procesar la reserva. Intenta de nuevo.')
       setConfirmModal(false)
     } finally {
       setLoading(false)
@@ -62,7 +63,7 @@ export default function CartPage() {
         <div className="mb-6 p-4 rounded-2xl flex items-start gap-3 text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
           <FaExclamationTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={16} />
           <div>
-            <p className="font-semibold text-red-600 dark:text-red-400">Stock insuficiente</p>
+            <p className="font-semibold text-red-600 dark:text-red-400">No se pudo procesar</p>
             <p className="mt-0.5" style={{ color: 'var(--tx-2)' }}>{errorMsg}</p>
           </div>
         </div>
@@ -144,10 +145,24 @@ export default function CartPage() {
               <p>Al confirmar, reservamos el stock para ti. Un asesor te contactará al <strong>{user?.telefono || 'número registrado'}</strong> para coordinar el pago y entrega.</p>
             </div>
 
-            <button onClick={() => setConfirmModal(true)}
-              className="btn-primary w-full justify-center py-3.5 text-sm">
-              Confirmar Stock
-            </button>
+            {!user?.identificacion ? (
+              <div className="rounded-xl p-3.5 text-xs" style={{ backgroundColor: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+                <p className="flex items-center gap-1.5 font-semibold mb-1" style={{ color: 'var(--tx-1)' }}>
+                  <FaFileInvoice size={12} className="text-yellow-500"/> Datos de facturación incompletos
+                </p>
+                <p className="mb-2" style={{ color: 'var(--tx-2)' }}>
+                  Debes completar tu NIT o cédula, dirección y datos fiscales antes de confirmar.
+                </p>
+                <Link to="/perfil" className="font-bold text-brand-600 dark:text-brand-400 hover:underline">
+                  Ir a mi perfil →
+                </Link>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmModal(true)}
+                className="btn-primary w-full justify-center py-3.5 text-sm">
+                Confirmar Stock
+              </button>
+            )}
 
             <a href={`https://wa.me/${companyInfo.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Hola, quisiera cotizar productos.')}`}
               target="_blank" rel="noreferrer"

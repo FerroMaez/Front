@@ -8,23 +8,10 @@ export default function ProductCard({ product }) {
   return (
     <Link
       to={`/servicios/${product.slug}`}
-      className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
-      style={{
-        backgroundColor: 'var(--bg-raised)',
-        border: '1px solid var(--bd-1)',
-        boxShadow: '0 2px 12px -4px rgba(140,144,59,0.08)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(140,144,59,0.45)'
-        e.currentTarget.style.boxShadow = '0 8px 32px -8px rgba(140,144,59,0.2)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--bd-1)'
-        e.currentTarget.style.boxShadow = '0 2px 12px -4px rgba(140,144,59,0.08)'
-      }}
+      className="product-card group relative flex flex-col rounded-3xl overflow-hidden h-full"
     >
       {/* Imagen */}
-      <div className="relative h-44 overflow-hidden" style={{ backgroundColor: 'var(--bg-surface)' }}>
+      <div className="relative h-48 overflow-hidden" style={{ backgroundColor: 'var(--bg-surface)' }}>
         <img
           src={product.imagen}
           alt={product.nombre}
@@ -32,20 +19,22 @@ export default function ProductCard({ product }) {
           onError={(e) => { e.target.src = '/newLogo3.jpeg' }}
         />
         <div className="absolute inset-0"
-          style={{ background: 'linear-gradient(to top, var(--bg-raised) 0%, transparent 60%)' }} />
-        <div className="absolute inset-0 bg-brand-500/0 group-hover:bg-brand-500/8 transition-colors duration-300" />
+          style={{ background: 'linear-gradient(to top, var(--bg-raised) 2%, transparent 55%)' }} />
+        {/* Lavado de agua al hover */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          style={{ background: 'linear-gradient(120deg, rgba(140,144,59,0.12), rgba(6,182,212,0.18))' }} />
       </div>
 
       {/* Contenido */}
       <div className="p-5 flex flex-col gap-3 flex-1">
-        <h3 className="font-semibold text-sm leading-snug transition-colors group-hover:text-brand-600 dark:group-hover:text-brand-300"
+        <h3 className="font-bold text-sm leading-snug transition-colors group-hover:text-aqua-600 dark:group-hover:text-aqua-300"
           style={{ color: 'var(--tx-1)' }}>
           {product.nombre}
         </h3>
         <p className="text-xs leading-relaxed flex-1" style={{ color: 'var(--tx-3)' }}>
           {product.descripcion}
         </p>
-        <div className="flex items-center gap-1.5 pt-1 text-xs font-semibold text-brand-600 dark:text-brand-400"
+        <div className="flex items-center gap-1.5 pt-3 text-xs font-bold text-brand-600 dark:text-aqua-300"
           style={{ borderTop: '1px solid var(--bd-1)' }}>
           Ver productos
           <FaArrowRight size={10} className="group-hover:translate-x-1 transition-transform duration-200" />

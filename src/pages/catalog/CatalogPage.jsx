@@ -1,71 +1,70 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { IoSearchOutline, IoFilterOutline } from 'react-icons/io5'
-import { FaShoppingCart, FaCheck } from 'react-icons/fa'
 import { productService } from '../../services/api/productService'
-import { useAuthStore } from '../../store/authStore'
-import { useCartStore } from '../../store/cartStore'
 import { CATEGORIAS, catalogImages, formatCOP } from '../../features/catalog/mockProducts'
 import StockBadge from '../../components/shared/StockBadge'
-import Modal from '../../components/ui/Modal'
 
 export default function CatalogPage() {
-  const { isAuthenticated } = useAuthStore()
-  const { addItem, items }  = useCartStore()
-
   const [products,  setProducts]  = useState([])
   const [loading,   setLoading]   = useState(true)
   const [search,    setSearch]    = useState('')
   const [categoria, setCategoria] = useState('')
   const [lightbox,  setLightbox]  = useState(null)
-  const [loginModal,setLoginModal]= useState(false)
-  const [added,     setAdded]     = useState({})   // { [id]: true } feedback visual
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const { data } = await productService.getAll({ search, categoria: categoria || undefined })
       setProducts(data)
-    } finally {
-      setLoading(false)
+    } catch { /* mantiene la lista anterior si falla la red */ }
+    finally {
+      if (!silent) setLoading(false)
     }
   }, [search, categoria])
 
   useEffect(() => { load() }, [load])
 
-  // SSE — actualización de stock en tiempo real
+  // Mantiene una referencia siempre actualizada de load para usarla dentro del SSE sin reconectar
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load }, [load])
+
+  // Respaldo: refresca la lista cada 60 s por si el SSE se cae
+  useEffect(() => {
+    const interval = setInterval(() => load(true), 60000)
+    return () => clearInterval(interval)
+  }, [load])
+
+  // SSE — tiempo real: stock por producto + alta/baja/edición de productos en el catálogo
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
     const es = new EventSource(`${apiUrl}/sse/stock`)
-    es.onmessage = (e) => {
+    es.addEventListener('stock-update', (e) => {
       try {
         const { productoId, nuevoStock } = JSON.parse(e.data)
         setProducts(prev => prev.map(p => p.id === productoId ? { ...p, stock_disponible: nuevoStock } : p))
       } catch { /* no-op */ }
-    }
+    })
+    es.addEventListener('catalogo-update', () => loadRef.current(true))
     return () => es.close()
   }, [])
 
-  const handleAddToCart = (product) => {
-    if (!isAuthenticated) { setLoginModal(true); return }
-    addItem(product)
-    setAdded(a => ({ ...a, [product.id]: true }))
-    setTimeout(() => setAdded(a => ({ ...a, [product.id]: false })), 1500)
-  }
-
-  const inCart = (id) => items.some(i => i.id === id)
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="section-badge mb-3">Catálogo de productos</div>
-        <h1 className="section-title">Nuestros Productos</h1>
-        <p className="section-subtitle">Tuberías, válvulas, acoples y accesorios con stock en tiempo real</p>
+      {/* Header — banner con flujo de agua */}
+      <div className="relative overflow-hidden rounded-[2rem] p-8 sm:p-10 mb-8"
+        style={{ border: '1px solid var(--bd-1)', backgroundColor: 'var(--bg-raised)' }}>
+        <div className="absolute inset-0 mesh-flow opacity-[0.16] dark:opacity-25 pointer-events-none" />
+        <div className="blob w-72 h-72 -top-16 -right-10 bg-aqua-500 opacity-30 animate-flow-alt" />
+        <div className="relative">
+          <div className="section-badge mb-3">Catálogo de productos</div>
+          <h1 className="section-title">Nuestros <span className="gradient-text">Productos</span></h1>
+          <p className="section-subtitle max-w-lg">Tuberías, válvulas, acoples y accesorios con stock en tiempo real</p>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-8">
+      {/* Filtros — barra flotante */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-8 p-2.5 rounded-2xl"
+        style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', boxShadow: '0 10px 30px -18px rgba(6,182,212,0.35)' }}>
         <div className="relative flex-1 max-w-sm">
           <IoSearchOutline className="absolute left-3.5 top-1/2 -translate-y-1/2" size={16} style={{ color: 'var(--tx-3)' }} />
           <input type="text" placeholder="Buscar por nombre..." value={search}
@@ -89,10 +88,11 @@ export default function CatalogPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="rounded-2xl overflow-hidden animate-pulse" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-              <div className="h-44 bg-white/10" />
-              <div className="p-4 space-y-2">
-                <div className="h-4 rounded bg-white/10 w-3/4" />
-                <div className="h-3 rounded bg-white/10 w-1/2" />
+              <div className="h-44" style={{ backgroundColor: 'var(--bg-surface)' }} />
+              <div className="p-4 space-y-2.5">
+                <div className="h-3 rounded w-1/3" style={{ backgroundColor: 'var(--bg-surface)' }} />
+                <div className="h-4 rounded w-3/4" style={{ backgroundColor: 'var(--bg-surface)' }} />
+                <div className="h-6 rounded w-1/2 mt-3" style={{ backgroundColor: 'var(--bg-surface)' }} />
               </div>
             </div>
           ))}
@@ -106,12 +106,11 @@ export default function CatalogPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {products.map(p => (
-            <div key={p.id} className="flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
-              style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', boxShadow: '0 2px 12px -4px rgba(140,144,59,0.06)' }}>
+            <div key={p.id} className="product-card group flex flex-col rounded-3xl overflow-hidden">
               {/* Imagen */}
               <div className="relative h-44 overflow-hidden bg-white">
                 <img src={p.imagen_url} alt={p.nombre}
-                  className="w-full h-full object-contain p-4 transition-transform duration-300 hover:scale-105"
+                  className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
                   onError={e => { e.target.src = '/newLogo3.jpeg' }} />
                 <div className="absolute top-3 left-3">
                   <StockBadge disponible={p.stock_disponible} minimo={p.stock_minimo} />
@@ -119,35 +118,19 @@ export default function CatalogPage() {
               </div>
 
               {/* Info */}
-              <div className="p-4 flex flex-col gap-3 flex-1">
+              <div className="p-4 flex flex-col gap-3 flex-1" style={{ borderTop: '1px solid var(--bd-1)' }}>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tx-3)' }}>{p.categoria}</span>
-                  <h3 className="font-semibold text-sm leading-snug mt-0.5" style={{ color: 'var(--tx-1)' }}>{p.nombre}</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-aqua-600 dark:text-aqua-400">{p.categoria}</span>
+                  <h3 className="font-bold text-sm leading-snug mt-0.5" style={{ color: 'var(--tx-1)' }}>{p.nombre}</h3>
                   {p.descripcion && <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--tx-3)' }}>{p.descripcion}</p>}
                 </div>
 
                 <div className="flex items-end justify-between mt-auto">
                   <div>
-                    <p className="text-xl font-bold text-brand-600 dark:text-brand-300">{formatCOP(p.precio_unitario)}</p>
+                    <p className="text-xl font-extrabold tracking-tight gradient-text">{formatCOP(p.precio_unitario)}</p>
                     <p className="text-[10px]" style={{ color: 'var(--tx-3)' }}>por unidad · {p.stock_disponible} disp.</p>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => handleAddToCart(p)}
-                  disabled={p.stock_disponible === 0}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: p.stock_disponible === 0 ? 'var(--bg-surface)' : added[p.id] ? 'rgba(34,197,94,0.15)' : 'rgba(140,144,59,0.15)',
-                    border: `1px solid ${p.stock_disponible === 0 ? 'var(--bd-1)' : added[p.id] ? 'rgba(34,197,94,0.4)' : 'rgba(140,144,59,0.4)'}`,
-                    color: p.stock_disponible === 0 ? 'var(--tx-3)' : added[p.id] ? '#16a34a' : 'var(--tx-1)',
-                  }}>
-                  {p.stock_disponible === 0
-                    ? 'Sin stock'
-                    : added[p.id]
-                      ? <><FaCheck size={12}/> Agregado</>
-                      : <><FaShoppingCart size={13}/> {inCart(p.id) ? 'Agregar más' : 'Agregar al carrito'}</>}
-                </button>
               </div>
             </div>
           ))}
@@ -184,14 +167,6 @@ export default function CatalogPage() {
         </button>
       )}
 
-      {/* Modal login */}
-      <Modal isOpen={loginModal} onClose={() => setLoginModal(false)} title="Inicia sesión para continuar" size="sm">
-        <p className="text-sm mb-5" style={{ color: 'var(--tx-2)' }}>Para agregar productos a tu cotización debes iniciar sesión.</p>
-        <div className="flex gap-3">
-          <Link to="/login" onClick={() => setLoginModal(false)} className="btn-primary flex-1 justify-center">Iniciar Sesión</Link>
-          <button onClick={() => setLoginModal(false)} className="btn-outline flex-1 justify-center">Cancelar</button>
-        </div>
-      </Modal>
     </div>
   )
 }

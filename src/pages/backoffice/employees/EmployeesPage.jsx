@@ -105,7 +105,8 @@ export default function EmployeesPage() {
 
       {/* Tabla */}
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--bd-1)' }}>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="text-sm data-table">
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--bd-1)' }}>
               {['Nombre', 'Email', 'Teléfono', 'Estado', 'Último acceso', ''].map(h => (
@@ -114,8 +115,17 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((e, i) => (
-              <tr key={e.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--bd-1)' : 'none', backgroundColor: 'var(--bg-raised)' }}>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
+                  {employees.length === 0
+                    ? 'No hay empleados registrados aún.'
+                    : 'Ningún empleado coincide con la búsqueda.'}
+                </td>
+              </tr>
+            )}
+            {filtered.map((e) => (
+              <tr key={e.id}>
                 <td className="px-4 py-3">
                   <p className="font-semibold" style={{ color: 'var(--tx-1)' }}>{e.nombre}</p>
                   <p className="text-[10px] text-brand-500 font-semibold">{e.rol}</p>
@@ -142,6 +152,7 @@ export default function EmployeesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Modal Crear */}

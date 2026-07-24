@@ -27,10 +27,15 @@ export default function AboutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-      <div className="mb-12">
-        <div className="section-badge mb-4">Nuestra historia</div>
-        <h1 className="section-title">Quiénes Somos</h1>
-        <p className="section-subtitle">Expertos en sistemas hidráulicos desde hace más de 15 años</p>
+      <div className="relative overflow-hidden rounded-[2rem] p-8 sm:p-10 mb-12"
+        style={{ border: '1px solid var(--bd-1)', backgroundColor: 'var(--bg-raised)' }}>
+        <div className="absolute inset-0 mesh-flow opacity-[0.16] dark:opacity-25 pointer-events-none" />
+        <div className="blob w-72 h-72 -top-16 -left-10 bg-brand-400 opacity-30 animate-flow" />
+        <div className="relative">
+          <div className="section-badge mb-4">Nuestra historia</div>
+          <h1 className="section-title">Quiénes <span className="gradient-text">Somos</span></h1>
+          <p className="section-subtitle max-w-lg">Expertos en sistemas hidráulicos desde hace más de 15 años</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 items-start mb-16">
@@ -40,7 +45,7 @@ export default function AboutPage() {
           <p className="text-base leading-relaxed mb-6" style={{ color: 'var(--tx-2)' }}>
             <span className="font-semibold" style={{ color: 'var(--tx-1)' }}>MANHID</span>{' '}
             es una empresa bogotana con más de{' '}
-            <span className="text-brand-600 dark:text-brand-300 font-semibold">15 años de experiencia</span>{' '}
+            <span className="text-aqua-600 dark:text-aqua-300 font-semibold">15 años de experiencia</span>{' '}
             en el sector de sistemas hidráulicos. Nos especializamos en el suministro y
             mantenimiento de soluciones hidráulicas para el sector residencial, comercial e industrial.
           </p>
@@ -56,7 +61,7 @@ export default function AboutPage() {
           <ul className="space-y-3 mb-8">
             {values.map((v) => (
               <li key={v} className="flex items-start gap-3 text-sm" style={{ color: 'var(--tx-2)' }}>
-                <FaCheckCircle className="text-brand-500 flex-shrink-0 mt-0.5" size={15} />
+                <FaCheckCircle className="text-aqua-500 flex-shrink-0 mt-0.5" size={15} />
                 {v}
               </li>
             ))}
@@ -70,7 +75,7 @@ export default function AboutPage() {
 
         {/* Carrusel */}
         <div>
-          <div className="relative rounded-2xl overflow-hidden aspect-[4/3]"
+          <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-float"
             style={{ border: '1px solid var(--bd-1)' }}>
             <img
               key={slide}
@@ -101,12 +106,12 @@ export default function AboutPage() {
           </div>
 
           {/* Stats card */}
-          <div className="mt-4 p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+          <div className="mt-5 p-6 rounded-3xl grad-border" style={{ backgroundColor: 'var(--bg-raised)' }}>
             <div className="grid grid-cols-3 gap-4 text-center">
               {numbers.map(({ v, l }) => (
                 <div key={l}>
-                  <p className="text-2xl font-bold gradient-text">{v}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--tx-3)' }}>{l}</p>
+                  <p className="text-3xl font-extrabold gradient-text">{v}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--tx-3)' }}>{l}</p>
                 </div>
               ))}
             </div>
