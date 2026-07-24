@@ -1,0 +1,45 @@
+name: Deploy front al Web Hosting
+
+# Cada push a main compila el front y lo sube al Web Hosting de Hostinger por FTPS.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-front
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar (usa .env.production -> VITE_API_URL)
+        run: npm run build
+
+      - name: Subir dist/ por FTPS a public_html
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:   ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          # Sube el contenido del build. server-dir apunta al public_html del sitio.
+          # Si usas una cuenta FTP dedicada cuyo directorio raíz YA es public_html,
+          # deja "./". Si usas la cuenta principal, cambia a la ruta completa
+          # (p.ej. domains/mantenimientos-hidraulicos-km.cloud/public_html/).
+          local-dir: ./dist/
+          server-dir: ./
+          dangerous-clean-slate: false
