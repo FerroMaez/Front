@@ -1,19 +1,27 @@
 import clsx from 'clsx'
 
-export default function Input({ label, error, className, ...props }) {
+export default function Input({ label, error, className, id, ...props }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-sm font-medium text-gray-300">{label}</label>}
+      {label && (
+        <label htmlFor={id} className="text-sm font-medium" style={{ color: 'var(--tx-2)' }}>
+          {label}
+        </label>
+      )}
       <input
+        id={id}
         className={clsx(
-          'w-full px-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-gray-500',
-          'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors',
-          error ? 'border-red-500' : 'border-white/10 hover:border-white/20',
+          'w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-colors',
           className,
         )}
+        style={{
+          backgroundColor: 'var(--bg-input)',
+          border: `1px solid ${error ? '#ef4444' : 'var(--bd-1)'}`,
+          color: 'var(--tx-1)',
+        }}
         {...props}
       />
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }

@@ -31,7 +31,7 @@ export default function ServicePage() {
 
       {/* Volver */}
       <Link to="/catalogo"
-        className="inline-flex items-center gap-2 text-sm mb-8 transition-colors text-brand-600 dark:text-brand-400 hover:text-brand-500">
+        className="inline-flex items-center gap-2 text-sm mb-8 transition-colors text-aqua-600 dark:text-aqua-400 hover:text-aqua-500">
         <FaArrowLeft size={12} />
         Volver al catálogo
       </Link>
@@ -40,8 +40,8 @@ export default function ServicePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14">
 
         {/* Imagen principal */}
-        <div className="relative rounded-2xl overflow-hidden aspect-[4/3] flex items-center justify-center"
-          style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+        <div className="relative rounded-3xl overflow-hidden aspect-[4/3] flex items-center justify-center shadow-raised"
+          style={{ backgroundColor: 'white', border: '1px solid var(--bd-1)' }}>
           <img
             src={selected ? selected.imagen : product.imagen}
             alt={selected ? selected.nombre : product.nombre}
@@ -64,8 +64,8 @@ export default function ServicePage() {
           <div className="section-badge mb-4">
             {selected ? 'Producto seleccionado' : 'Línea de producto'}
           </div>
-          <h1 className="text-3xl lg:text-4xl font-bold mb-4 leading-snug" style={{ color: 'var(--tx-1)' }}>
-            {selected ? selected.nombre : product.nombre}
+          <h1 className="text-3xl lg:text-4xl font-extrabold mb-4 leading-tight" style={{ color: 'var(--tx-1)' }}>
+            {selected ? selected.nombre : <span className="gradient-text">{product.nombre}</span>}
           </h1>
 
           {!selected && (
@@ -76,7 +76,7 @@ export default function ServicePage() {
           {selected && (
             <p className="text-base mb-6" style={{ color: 'var(--tx-2)' }}>
               Parte de la línea{' '}
-              <span className="text-brand-600 dark:text-brand-300 font-medium">{product.nombre}</span>.
+              <span className="text-aqua-600 dark:text-aqua-300 font-semibold">{product.nombre}</span>.
               Contáctanos para disponibilidad y precios.
             </p>
           )}
@@ -85,7 +85,7 @@ export default function ServicePage() {
             href={`https://wa.me/${companyInfo.whatsapp.replace(/\D/g, '')}?text=${waMessage}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-3 px-6 py-3.5 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-all hover:-translate-y-px shadow-md shadow-green-900/20 w-fit text-sm"
+            className="inline-flex items-center gap-3 px-6 py-3.5 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-full transition-all hover:-translate-y-0.5 shadow-md shadow-green-900/20 w-fit text-sm"
           >
             <FaWhatsapp size={17} />
             Consultar precio / disponibilidad
@@ -115,15 +115,14 @@ export default function ServicePage() {
               <button
                 key={sub.id}
                 onClick={() => setSelected(isActive ? null : sub)}
-                className="group flex flex-col items-center gap-3 p-4 rounded-2xl text-center transition-all duration-200"
+                className="group flex flex-col items-center gap-3 p-4 rounded-2xl text-center transition-all duration-200 hover:-translate-y-0.5"
                 style={{
-                  border: `1px solid ${isActive ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`,
-                  backgroundColor: isActive ? 'rgba(140,144,59,0.10)' : 'var(--bg-raised)',
-                  boxShadow: isActive ? '0 4px 20px -4px rgba(140,144,59,0.25)' : 'none',
+                  border: `1px solid ${isActive ? 'rgba(6,182,212,0.6)' : 'var(--bd-1)'}`,
+                  backgroundColor: isActive ? 'rgba(6,182,212,0.10)' : 'var(--bg-raised)',
+                  boxShadow: isActive ? '0 8px 26px -6px rgba(6,182,212,0.35)' : 'none',
                 }}
               >
-                <div className="w-full aspect-square rounded-xl overflow-hidden"
-                  style={{ backgroundColor: 'var(--bg-surface)' }}>
+                <div className="w-full aspect-square rounded-xl overflow-hidden bg-white">
                   <img
                     src={sub.imagen}
                     alt={sub.nombre}

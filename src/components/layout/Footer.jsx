@@ -12,7 +12,8 @@ const navLinks = [
 
 export default function Footer() {
   return (
-    <footer className="mt-auto" style={{ backgroundColor: 'var(--bg-footer)', borderTop: '1px solid rgba(140,144,59,0.2)' }}>
+    <footer className="mt-auto relative" style={{ backgroundColor: 'var(--bg-footer)' }}>
+      <div className="h-[3px] bg-gradient-to-r from-brand-500 via-aqua-400 to-brand-500 animate-gradient" style={{ backgroundSize: '200% 100%' }} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
 
@@ -20,10 +21,10 @@ export default function Footer() {
           <div>
             <Link to="/" className="flex items-center gap-3 mb-5">
               <img src="/newLogo3.jpeg" alt="MANHID"
-                className="h-12 w-12 rounded-xl object-cover ring-2 ring-brand-500/50" />
+                className="h-12 w-12 rounded-xl object-cover ring-2 ring-aqua-500/50" />
               <div>
                 <p className="text-white font-bold text-xl leading-none">MANHID</p>
-                <p className="text-brand-400 text-xs font-semibold tracking-widest uppercase mt-0.5">
+                <p className="text-aqua-300 text-xs font-semibold tracking-widest uppercase mt-0.5">
                   Sistemas Hidráulicos
                 </p>
               </div>
@@ -53,8 +54,8 @@ export default function Footer() {
               {navLinks.map(({ label, to }) => (
                 <li key={to}>
                   <Link to={to}
-                    className="text-gray-400 hover:text-brand-300 text-sm transition-colors flex items-center gap-2 group">
-                    <span className="w-1 h-1 rounded-full bg-brand-600 group-hover:bg-brand-400 transition-colors" />
+                    className="text-gray-400 hover:text-aqua-300 text-sm transition-colors flex items-center gap-2 group">
+                    <span className="w-1.5 h-1.5 rounded-full bg-aqua-500 group-hover:bg-aqua-300 transition-colors" />
                     {label}
                   </Link>
                 </li>
@@ -75,9 +76,9 @@ export default function Footer() {
                 { icon: <FaClock        size={13} />, text: `Lun–Vie 8–18 h · Sáb 8–14 h` },
               ].map(({ icon, text, href }) => (
                 <li key={text} className="flex items-start gap-3 text-sm text-gray-400">
-                  <span className="text-brand-500 mt-0.5 flex-shrink-0">{icon}</span>
+                  <span className="text-aqua-400 mt-0.5 flex-shrink-0">{icon}</span>
                   {href
-                    ? <a href={href} className="hover:text-brand-300 transition-colors">{text}</a>
+                    ? <a href={href} className="hover:text-aqua-300 transition-colors">{text}</a>
                     : <span>{text}</span>}
                 </li>
               ))}
@@ -88,7 +89,12 @@ export default function Footer() {
         <div className="mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-gray-600"
           style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <p>© {new Date().getFullYear()} MANHID. Todos los derechos reservados.</p>
-          <p>Bogotá, Colombia · <span className="text-brand-600">#8C903B</span></p>
+          <div className="flex items-center gap-4">
+            <Link to="/politica-privacidad" className="hover:text-brand-400 transition-colors">
+              Política de Privacidad
+            </Link>
+            <p>Bogotá, Colombia · <span className="text-brand-600">#8C903B</span></p>
+          </div>
         </div>
       </div>
     </footer>
