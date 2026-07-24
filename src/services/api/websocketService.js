@@ -31,6 +31,8 @@ export const websocketService = {
 
     stompClient = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
+      // El backend exige JWT en el CONNECT (StompAuthChannelInterceptor).
+      connectHeaders: { Authorization: `Bearer ${localStorage.getItem('manhid-token') || ''}` },
       reconnectDelay: 5000,
       onConnect: () => {
         notifyAll(statusListeners, 'connected')
