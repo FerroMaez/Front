@@ -119,7 +119,7 @@ export default function HomePage() {
                     <FaPhoneAlt size={14} className="text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold leading-none" style={{ color: 'var(--tx-1)' }}>{companyInfo.phone1}</p>
+                    <p className="text-sm font-bold leading-none" style={{ color: 'var(--tx-1)' }}>{companyInfo.phone2}</p>
                     <p className="text-[11px] mt-1" style={{ color: 'var(--tx-3)' }}>Atención directa</p>
                   </div>
                 </div>
