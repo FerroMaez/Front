@@ -96,8 +96,8 @@ export default function HomePage() {
               <div className="relative">
                 <div className="relative overflow-hidden shadow-float animate-float-y"
                   style={{ borderRadius: '2rem', border: '1px solid var(--bd-1)' }}>
-                  <img src="/sector.jpeg" alt="Sistemas hidráulicos MANHID"
-                    className="w-full aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5] object-cover" />
+                  <img src="/sector1.png" alt="Sistemas hidráulicos MANHID"
+                    className="w-full aspect-[4/3] object-cover" />
                   <div className="absolute inset-0"
                     style={{ background: 'linear-gradient(150deg, transparent 45%, rgba(8,20,30,0.55))' }} />
                 </div>

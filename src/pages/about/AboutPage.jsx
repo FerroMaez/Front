@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FaCheckCircle, FaArrowLeft, FaArrowRight } from 'react-icons/fa'
 import { Link } from 'react-router-dom'
 
-const slides = ['/sector.jpeg', '/interior.jpeg']
+const slides = ['/sector1.png', '/interior1.jpeg','/interior2.jpeg','/interior3.jpeg','/interior4.jpeg','/interior5.jpeg']
 
 const values = [
   'Más de 15 años de experiencia en el sector hidráulico',
