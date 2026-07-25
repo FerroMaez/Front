@@ -63,14 +63,20 @@ export default function HomePage() {
 
               <h1 className="font-display text-[2.75rem] sm:text-6xl lg:text-[4.6rem] font-extrabold leading-[1.02] tracking-[-0.03em] mb-6 animate-fadein-delay"
                 style={{ color: 'var(--tx-1)' }}>
-                Ingeniería que{' '}
-                <span className="gradient-text">mueve el agua</span>
+                TODO PARA {' '}
+                <span className="gradient-text">REDES HIDRÁULICAS EN UN SOLO LUGAR</span>
               </h1>
 
-              <p className="text-lg leading-relaxed mb-8 max-w-lg animate-fadein-slow" style={{ color: 'var(--tx-2)' }}>
-                Suministro y mantenimiento especializado para redes hidráulicas,
-                contra incendios, acueducto, acero inoxidable y PVC.
-              </p>
+              <ul className="flex flex-wrap gap-2.5 mb-8 animate-fadein-slow">
+                {['Suministro', 'Mantenimiento', 'Respaldo técnico'].map((item) => (
+                  <li key={item}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
+                    style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
+                    <FaCheckCircle size={14} className="text-aqua-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
 
               <div className="flex flex-wrap gap-3.5 mb-8 animate-fadein-slow">
                 <Link to="/catalogo" className="btn-primary px-7 py-3.5">
@@ -228,7 +234,7 @@ export default function HomePage() {
             <div className="relative reveal">
               <div className="relative overflow-hidden shadow-float"
                 style={{ borderRadius: '2rem', border: '1px solid var(--bd-1)' }}>
-                <img src="/interior.jpeg" alt="Nuestras instalaciones"
+                <img src="/interior1.jpeg" alt="Nuestras instalaciones"
                   className="w-full aspect-[4/3] object-cover" />
                 <div className="absolute inset-0"
                   style={{ background: 'linear-gradient(to top right, rgba(8,20,30,0.4), transparent)' }} />
@@ -246,8 +252,8 @@ export default function HomePage() {
                   <FaPhoneAlt size={15} className="text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm" style={{ color: 'var(--tx-1)' }}>{companyInfo.phone1}</p>
-                  <p className="text-xs" style={{ color: 'var(--tx-3)' }}>{companyInfo.phone2}</p>
+                  <p className="font-bold text-sm" style={{ color: 'var(--tx-1)' }}>{companyInfo.phone2}</p>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--tx-3)' }}>Atención directa</p>
                 </div>
               </div>
             </div>
