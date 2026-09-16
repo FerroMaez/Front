@@ -1,7 +1,11 @@
 import { Client } from '@stomp/stompjs'
-import SockJS from 'sockjs-client'
 
-const WS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '') + '/ws'
+// WebSocket NATIVO (wss). Antes usábamos SockJS, que fallaba cross-origin en el
+// navegador (front en el dominio raíz, API en el subdominio api) → se quedaba en
+// "Conectando…". El WS nativo conecta limpio; Nginx ya lo proxea con upgrade en /ws.
+const WS_URL = ((import.meta.env.VITE_API_URL || 'http://localhost:8080/api')
+  .replace(/\/api\/?$/, '') + '/ws')
+  .replace(/^http/, 'ws')   // http->ws, https->wss
 
 let stompClient = null
 let lastStatus = 'connecting'
@@ -32,7 +36,7 @@ export const websocketService = {
     if (stompClient?.active) return
 
     stompClient = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
+      brokerURL: WS_URL,
       // El backend exige JWT en el CONNECT (StompAuthChannelInterceptor).
       connectHeaders: { Authorization: `Bearer ${localStorage.getItem('manhid-token') || ''}` },
       reconnectDelay: 5000,
