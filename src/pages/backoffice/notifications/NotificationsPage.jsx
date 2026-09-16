@@ -2,53 +2,18 @@ import { useEffect, useState } from 'react'
 import { FaBell, FaExclamationTriangle, FaShoppingCart, FaCheck, FaTrash } from 'react-icons/fa'
 import { useNotificationStore } from '../../../store/notificationStore'
 import { websocketService } from '../../../services/api/websocketService'
-import { dashboardService } from '../../../services/api/dashboardService'
-import { formatCOP } from '../../../utils/formatters'
-
-let stockSeeded = false
 
 export default function NotificationsPage() {
-  const { notifications, unreadCount, markRead, markAllRead, clearAll, addNotification } = useNotificationStore()
+  const { notifications, unreadCount, markRead, markAllRead, clearAll } = useNotificationStore()
   const [wsStatus, setWsStatus] = useState('connecting')
 
   useEffect(() => {
-    // Carga alertas de stock crítico actuales al entrar (solo una vez por sesión)
-    if (!stockSeeded) {
-      stockSeeded = true
-      dashboardService.getStats().then(stats => {
-        stats.productosStockCritico.forEach(p => {
-          addNotification({
-            tipo: 'STOCK_MINIMO',
-            titulo: `⚠️ Stock bajo: ${p.nombre}`,
-            descripcion: `${p.stock_disponible} uds disponibles (mínimo: ${p.stock_minimo})`,
-            productoId: p.id,
-          })
-        })
-      }).catch(() => {})
-    }
-
-    websocketService.connect()
+    // La conexión y las suscripciones a alertas/órdenes viven en BackofficeLayout
+    // (globales, activas en toda la sesión, no solo en esta pantalla). Aquí solo
+    // reflejamos el estado de conexión para el indicador "En vivo".
     const unsubStatus = websocketService.onStatus(setWsStatus)
-    const unsubAlerta = websocketService.onAlerta((data) => {
-      addNotification({
-        tipo: 'STOCK_MINIMO',
-        titulo: `⚠️ Stock bajo: ${data.nombre}`,
-        descripcion: `${data.stockDisponible} uds disponibles (mínimo: ${data.stockMinimo})`,
-        productoId: data.productoId,
-      })
-    })
-    const unsubOrden = websocketService.onOrden((data) => {
-      addNotification({
-        tipo: 'NUEVA_ORDEN',
-        titulo: `🛒 Nueva cotización #${data.ordenId}`,
-        descripcion: `Total: ${formatCOP(data.total)}`,
-        ordenId: data.ordenId,
-      })
-    })
-
-    // No desconectamos: la conexión se comparte con otras páginas (Órdenes) y persiste en la sesión
-    return () => { unsubStatus(); unsubAlerta(); unsubOrden() }
-  }, []) // eslint-disable-line
+    return () => { unsubStatus() }
+  }, [])
 
   const TYPE_CONFIG = {
     STOCK_MINIMO: { icon: <FaExclamationTriangle size={14}/>, bg: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-300' },

@@ -1,20 +1,71 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { FaTachometerAlt, FaBoxes, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
 import { useThemeStore } from '../../store/themeStore'
+import { websocketService } from '../../services/api/websocketService'
+import { dashboardService } from '../../services/api/dashboardService'
+import { formatCOP } from '../../utils/formatters'
 import { IoSunnyOutline, IoMoonOutline } from 'react-icons/io5'
 import clsx from 'clsx'
 
 export default function BackofficeLayout() {
   const { user, logout } = useAuthStore()
-  const { unreadCount }           = useNotificationStore()
+  const { unreadCount, addNotification } = useNotificationStore()
   const { theme, toggle }         = useThemeStore()
   const navigate                  = useNavigate()
   const [sideOpen, setSideOpen]   = useState(false)
+  const [toasts, setToasts]       = useState([])
 
   const handleLogout = () => { logout(); navigate('/') }
+
+  // WebSocket GLOBAL: se conecta al entrar al backoffice y escucha alertas en
+  // TODA la sesión (no solo en la página de Notificaciones). Muestra un toast
+  // visible al instante y alimenta el store (badge + lista). Antes la conexión
+  // vivía dentro de NotificationsPage y se cortaba al salir de esa pantalla.
+  useEffect(() => {
+    // Semilla: alertas de stock crítico actuales (una vez por carga de la app)
+    if (!window.__manhidSeeded) {
+      window.__manhidSeeded = true
+      dashboardService.getStats().then(stats => {
+        (stats?.productosStockCritico || []).forEach(p => addNotification({
+          tipo: 'STOCK_MINIMO',
+          titulo: `⚠️ Stock bajo: ${p.nombre}`,
+          descripcion: `${p.stock_disponible} uds disponibles (mínimo: ${p.stock_minimo})`,
+          productoId: p.id,
+        }))
+      }).catch(() => {})
+    }
+
+    const pushToast = (t) => {
+      const id = Date.now() + Math.random()
+      setToasts(prev => [...prev, { id, ...t }])
+      setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 6000)
+    }
+
+    websocketService.connect()
+    const unsubAlerta = websocketService.onAlerta((data) => {
+      const n = {
+        tipo: 'STOCK_MINIMO',
+        titulo: `⚠️ Stock bajo: ${data.nombre}`,
+        descripcion: `${data.stockDisponible} uds disponibles (mínimo: ${data.stockMinimo})`,
+        productoId: data.productoId,
+      }
+      addNotification(n); pushToast(n)
+    })
+    const unsubOrden = websocketService.onOrden((data) => {
+      const n = {
+        tipo: 'NUEVA_ORDEN',
+        titulo: `🛒 Nueva cotización #${data.ordenId}`,
+        descripcion: `Total: ${formatCOP(data.total)}`,
+        ordenId: data.ordenId,
+      }
+      addNotification(n); pushToast(n)
+    })
+    // No desconectamos: la conexión persiste mientras el JEFE esté en el panel.
+    return () => { unsubAlerta(); unsubOrden() }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const links = [
     { to: '/backoffice',               label: 'Dashboard',  icon: <FaTachometerAlt size={15}/>, exact: true },
@@ -45,6 +96,18 @@ export default function BackofficeLayout() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-base)' }}>
+      {/* Toasts globales de alertas en tiempo real */}
+      <div className="fixed top-16 right-4 z-50 flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
+        {toasts.map(t => (
+          <button key={t.id} type="button" onClick={() => navigate('/backoffice/notificaciones')}
+            className="text-left px-4 py-3 rounded-2xl shadow-xl text-white transition-transform hover:scale-[1.02]"
+            style={{ backgroundColor: t.tipo === 'NUEVA_ORDEN' ? '#6b7030' : '#b45309' }}>
+            <p className="font-semibold text-sm">{t.titulo}</p>
+            <p className="text-xs opacity-90 mt-0.5">{t.descripcion}</p>
+          </button>
+        ))}
+      </div>
+
       {/* Top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between px-4 h-14" style={{ backgroundColor: 'var(--bg-nav)', boxShadow: '0 1px 0 var(--bd-1)', backdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-3">
