@@ -4,6 +4,7 @@ import SockJS from 'sockjs-client'
 const WS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '') + '/ws'
 
 let stompClient = null
+let lastStatus = 'connecting'
 const alertaListeners = new Set()
 const ordenListeners  = new Set()
 const statusListeners = new Set()
@@ -23,6 +24,7 @@ export const websocketService = {
   },
   onStatus(fn) {
     statusListeners.add(fn)
+    fn(lastStatus)   // entrega el estado actual de inmediato (aunque ya esté conectado)
     return () => statusListeners.delete(fn)
   },
 
@@ -35,6 +37,7 @@ export const websocketService = {
       connectHeaders: { Authorization: `Bearer ${localStorage.getItem('manhid-token') || ''}` },
       reconnectDelay: 5000,
       onConnect: () => {
+        lastStatus = 'connected'
         notifyAll(statusListeners, 'connected')
         stompClient.subscribe('/topic/alertas', (msg) => {
           try { notifyAll(alertaListeners, JSON.parse(msg.body)) } catch (_) {}
@@ -43,9 +46,9 @@ export const websocketService = {
           try { notifyAll(ordenListeners, JSON.parse(msg.body)) } catch (_) {}
         })
       },
-      onDisconnect:     () => notifyAll(statusListeners, 'disconnected'),
-      onStompError:     () => notifyAll(statusListeners, 'disconnected'),
-      onWebSocketError: () => notifyAll(statusListeners, 'disconnected'),
+      onDisconnect:     () => { lastStatus = 'disconnected'; notifyAll(statusListeners, 'disconnected') },
+      onStompError:     () => { lastStatus = 'disconnected'; notifyAll(statusListeners, 'disconnected') },
+      onWebSocketError: () => { lastStatus = 'disconnected'; notifyAll(statusListeners, 'disconnected') },
     })
 
     stompClient.activate()
