@@ -62,6 +62,7 @@ export default function AppRouter() {
         <Route path="/backoffice" element={<RequireJefe><BackofficeLayout /></RequireJefe>}>
           <Route index                element={<DashboardPage />} />
           <Route path="inventario"    element={<InventoryPage />} />
+          <Route path="arreglos"      element={<InventoryPage tipoInventario="ARREGLO" titulo="Arreglos" />} />
           <Route path="ordenes"       element={<OrdersPage />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
         </Route>

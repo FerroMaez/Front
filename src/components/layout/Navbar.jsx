@@ -9,7 +9,6 @@ import clsx from 'clsx'
 
 const publicLinks = [
   { label: 'Inicio',         to: '/' },
-  { label: 'Catálogo',       to: '/catalogo' },
   { label: 'Quiénes Somos',  to: '/quienes-somos' },
   { label: 'Mantenimientos', to: '/mantenimientos' },
   { label: 'Contáctanos',    to: '/contacto' },
