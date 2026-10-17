@@ -133,7 +133,8 @@ export default function OrdersPage() {
         telefono: vfCliente.telefono || null,
         email: vfCliente.email || null,
       }
-      await orderService.ventaFisica(vfItems, cliente, vfDescripcion)
+      const venta = await orderService.ventaFisica(vfItems, cliente, vfDescripcion)
+      setOrders(prev => [venta, ...prev.filter(o => o.id !== venta.id)])
       setFilter('all')
       showToast('Venta física registrada correctamente')
     } catch (err) {
