@@ -37,7 +37,8 @@ export default function OrdersPage() {
   const [vfPaso,          setVfPaso]          = useState(1)
   const [productos,       setProductos]       = useState([])
   const [cantidades,      setCantidades]      = useState({})
-  const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', tipoIdentificacion: '', identificacion: '', digitoVerificacion: '', tipoResponsabilidadFiscal: '', codigoMunicipioDane: '', direccion: '', email: '' })
+  const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', email: '' })
+  const [vfDescripcion,   setVfDescripcion]   = useState('')
   const [vfErrors,        setVfErrors]        = useState({})
   const [loadingVF,       setLoadingVF]       = useState(false)
   const [exportLoading,   setExportLoading]   = useState(false)
@@ -58,7 +59,8 @@ export default function OrdersPage() {
     if (!vfOpen) return
     setVfPaso(1)
     setCantidades({})
-    setVfCliente({ nombre: '', telefono: '', tipoIdentificacion: '', identificacion: '', digitoVerificacion: '', tipoResponsabilidadFiscal: '', codigoMunicipioDane: '', direccion: '', email: '' })
+    setVfCliente({ nombre: '', telefono: '', email: '' })
+    setVfDescripcion('')
     setVfErrors({})
     productService.getAll()
       .then(r => setProductos(r.data.filter(p => p.estado === 'ACTIVO' && p.stock_disponible > 0)))
@@ -113,35 +115,11 @@ export default function OrdersPage() {
     } finally { setLoading(false) }
   }
 
-  const TIPOS_ID_VF = [
-    { value: '13', label: 'Cédula (CC)' },
-    { value: '31', label: 'NIT' },
-    { value: '22', label: 'Cédula extranjería (CE)' },
-    { value: '12', label: 'Tarjeta identidad' },
-    { value: '91', label: 'CUIL' },
-  ]
-  const TIPOS_RESP_VF = [
-    { value: 'R-99-PN', label: 'No responsable del IVA' },
-    { value: 'O-13',    label: 'Gran contribuyente' },
-    { value: 'O-15',    label: 'Autorretenedor' },
-    { value: 'O-23',    label: 'Agente de retención IVA' },
-    { value: 'O-47',    label: 'Régimen simple' },
-  ]
-
   const setCliente = (k) => (e) => setVfCliente(p => ({ ...p, [k]: e.target.value }))
 
   const validarCliente = () => {
     const e = {}
-    if (!vfCliente.nombre.trim())               e.nombre = 'Obligatorio'
-    if (!vfCliente.tipoIdentificacion)           e.tipoIdentificacion = 'Selecciona el tipo'
-    if (!vfCliente.identificacion.trim())        e.identificacion = 'Obligatorio'
-    else if (!/^\d+$/.test(vfCliente.identificacion)) e.identificacion = 'Solo dígitos'
-    if (vfCliente.tipoIdentificacion === '31' && !vfCliente.digitoVerificacion.trim())
-      e.digitoVerificacion = 'Obligatorio para NIT'
-    if (!vfCliente.tipoResponsabilidadFiscal)    e.tipoResponsabilidadFiscal = 'Selecciona el tipo'
-    if (!vfCliente.codigoMunicipioDane.trim())   e.codigoMunicipioDane = 'Obligatorio'
-    else if (!/^\d{5}$/.test(vfCliente.codigoMunicipioDane)) e.codigoMunicipioDane = 'Debe ser 5 dígitos'
-    if (!vfCliente.direccion.trim())             e.direccion = 'Obligatorio'
+    if (!vfCliente.nombre.trim()) e.nombre = 'El nombre es obligatorio'
     setVfErrors(e)
     return Object.keys(e).length === 0
   }
@@ -153,20 +131,11 @@ export default function OrdersPage() {
       const cliente = {
         nombre: vfCliente.nombre,
         telefono: vfCliente.telefono || null,
-        tipoIdentificacion: vfCliente.tipoIdentificacion,
-        identificacion: vfCliente.identificacion,
-        digitoVerificacion: vfCliente.tipoIdentificacion === '31' ? vfCliente.digitoVerificacion : null,
-        tipoResponsabilidadFiscal: vfCliente.tipoResponsabilidadFiscal,
-        codigoMunicipioDane: vfCliente.codigoMunicipioDane,
-        direccion: vfCliente.direccion,
         email: vfCliente.email || null,
       }
-      const order = await orderService.ventaFisica(vfItems, cliente)
-      if (order.facturacion_estado === 'FACTURADO') {
-        showToast('Venta física registrada y facturada correctamente')
-      } else {
-        showToast(`Venta registrada pero hubo un error al facturar: ${order.error_facturacion || 'Error con Dataico'}`)
-      }
+      await orderService.ventaFisica(vfItems, cliente, vfDescripcion)
+      setFilter('all')
+      showToast('Venta física registrada correctamente')
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || 'Error al registrar la venta física'
       showToast(msg)
@@ -245,7 +214,7 @@ export default function OrdersPage() {
         )}
         {filtered.map(order => {
           const cfg       = STATE_CONFIG[order.estado]
-          const factCfg   = FACTURACION_CONFIG[order.facturacion_estado]
+          const factCfg   = order.es_venta_fisica ? null : FACTURACION_CONFIG[order.facturacion_estado]
           const isTerminal = ['VENTA_EXITOSA', 'CANCELADA'].includes(order.estado)
           const isExpanded = expandedId === order.id
           const elapsed    = Math.round((Date.now() - new Date(order.fecha_creacion).getTime()) / 60000)
@@ -306,6 +275,11 @@ export default function OrdersPage() {
                         <p className="flex items-center gap-2"><FaPhone size={10} className="text-brand-500"/> {order.cliente?.telefono}</p>
                         <p className="flex items-center gap-2"><FaEnvelope size={10} className="text-brand-500"/> {order.cliente?.email}</p>
                       </div>
+                      {order.es_venta_fisica && order.descripcion && (
+                        <div className="mt-3 p-2.5 rounded-xl text-xs" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-2)' }}>
+                          <strong style={{ color: 'var(--tx-1)' }}>Descripción de la venta:</strong> {order.descripcion}
+                        </div>
+                      )}
                       {order.motivo_cancelacion && (
                         <div className="mt-3 p-2.5 rounded-xl text-xs" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: 'var(--tx-2)' }}>
                           <strong style={{ color: 'var(--tx-1)' }}>Motivo:</strong> {order.motivo_cancelacion}
@@ -315,7 +289,7 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Sección facturación electrónica */}
-                  {(order.cufe || order.error_facturacion) && (
+                  {!order.es_venta_fisica && (order.cufe || order.error_facturacion) && (
                     <div className="px-4 pb-4">
                       <div className="p-3.5 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--bd-1)' }}>
                         <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>Facturación Electrónica DIAN</p>
@@ -425,16 +399,17 @@ export default function OrdersPage() {
         {productos.length === 0 ? (
           <div className="text-center py-8" style={{ color: 'var(--tx-3)' }}>Cargando productos…</div>
         ) : (
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1 mb-4">
             {productos.map(p => (
-              <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--bd-1)' }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--tx-1)' }}>{p.nombre}</p>
-                  <p className="text-xs" style={{ color: 'var(--tx-3)' }}>
-                    {formatCOP(p.precio_unitario)} · Stock: {p.stock_disponible}
-                  </p>
+              <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border transition-colors"
+                style={{ backgroundColor: 'var(--bg-surface)', borderColor: cantidades[p.id] ? 'rgba(140,144,59,0.5)' : 'var(--bd-1)' }}>
+                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+                  <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-1" onError={e => { e.target.src = '/newLogo3.jpeg' }} />
                 </div>
-                <input type="number" min="0" max={p.stock_disponible}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>{p.nombre}</p>
+                </div>
+                <input aria-label={'Cantidad de ' + p.nombre} type="number" min="0" max={p.stock_disponible} step="1"
                   value={cantidades[p.id] || ''} placeholder="0"
                   onChange={e => setQty(p.id, Math.min(Math.max(0, +e.target.value), p.stock_disponible))}
                   className="w-20 px-2 py-1.5 rounded-lg text-sm text-center outline-none"
@@ -485,45 +460,26 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* Formulario datos cliente */}
         <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--tx-3)' }}>Datos del cliente</p>
-        {(() => {
-          const inp = (key, label, placeholder, type = 'text') => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1 mb-4">
+          {[['nombre', 'Nombre completo', 'Nombre del cliente', 'text'], ['telefono', 'Teléfono (opcional)', '310 000 0000', 'tel'], ['email', 'Email (opcional)', 'cliente@email.com', 'email']].map(([key, label, placeholder, type]) => (
             <div key={key}>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>{label}</label>
-              <input id={`vf-${key}`} type={type} placeholder={placeholder} value={vfCliente[key]}
-                onChange={setCliente(key)}
+              <label htmlFor={'vf-' + key} className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>{label}</label>
+              <input id={'vf-' + key} type={type} placeholder={placeholder} value={vfCliente[key]} onChange={setCliente(key)}
                 className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${vfErrors[key] ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
+                style={{ backgroundColor: 'var(--bg-input)', border: '1px solid ' + (vfErrors[key] ? '#ef4444' : 'var(--bd-1)'), color: 'var(--tx-1)' }} />
               {vfErrors[key] && <p className="mt-0.5 text-xs text-red-500">{vfErrors[key]}</p>}
             </div>
-          )
-          const sel = (key, label, options) => (
-            <div key={key}>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>{label}</label>
-              <select id={`vf-${key}`} value={vfCliente[key]} onChange={setCliente(key)}
-                className="w-full px-3 py-2 rounded-xl text-sm outline-none appearance-none"
-                style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${vfErrors[key] ? '#ef4444' : 'var(--bd-1)'}`, color: vfCliente[key] ? 'var(--tx-1)' : 'var(--tx-3)' }}>
-                <option value="">Selecciona…</option>
-                {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              {vfErrors[key] && <p className="mt-0.5 text-xs text-red-500">{vfErrors[key]}</p>}
-            </div>
-          )
-          return (
-            <div className="space-y-3 max-h-64 overflow-y-auto pr-1 mb-4">
-              {inp('nombre', 'Nombre completo', 'Juan Pérez')}
-              {inp('telefono', 'Teléfono', '310 000 0000', 'tel')}
-              {sel('tipoIdentificacion', 'Tipo de identificación', TIPOS_ID_VF)}
-              {inp('identificacion', 'Número de identificación', 'Ej: 123456789')}
-              {vfCliente.tipoIdentificacion === '31' && inp('digitoVerificacion', 'Dígito de verificación', 'Ej: 9')}
-              {sel('tipoResponsabilidadFiscal', 'Responsabilidad fiscal', TIPOS_RESP_VF)}
-              {inp('codigoMunicipioDane', 'Código DANE (5 dígitos)', 'Ej: 11001')}
-              {inp('direccion', 'Dirección', 'Calle 1 # 2-3, Bogotá')}
-              {inp('email', 'Email (opcional, para enviar la factura)', 'cliente@email.com', 'email')}
-            </div>
-          )
-        })()}
+          ))}
+        </div>
+        <div className="mb-4">
+          <label htmlFor="vf-descripcion" className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Descripción de la venta (opcional)</label>
+          <textarea id="vf-descripcion" rows={3} maxLength={2000} value={vfDescripcion} onChange={e => setVfDescripcion(e.target.value)}
+            placeholder="Agrega detalles o notas de esta venta..."
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-y"
+            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+        </div>
+
 
         <div className="flex gap-3">
           <button onClick={() => setVfPaso(1)} className="btn-outline py-2.5 px-4 text-sm font-bold">

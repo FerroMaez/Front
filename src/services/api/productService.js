@@ -3,6 +3,9 @@ import api from './axiosInstance'
 const toBackendPayload = (p) => ({
   nombre: p.nombre,
   descripcion: p.descripcion,
+  pulgadas: p.pulgadas || '',
+  condicion: p.condicion || 'NUEVO',
+  tipoInventario: p.tipo_inventario || p.tipoInventario || 'INVENTARIO',
   imagenUrl: p.imagen_url || p.imagenUrl,
   precioUnitario: p.precio_unitario ?? p.precioUnitario,
   stockDisponible: p.stock_disponible ?? p.stockDisponible,
@@ -15,6 +18,9 @@ const mapProduct = (p) => ({
   id: p.id,
   nombre: p.nombre,
   descripcion: p.descripcion,
+  pulgadas: p.pulgadas || '',
+  condicion: p.condicion || 'NUEVO',
+  tipo_inventario: p.tipoInventario || 'INVENTARIO',
   imagen_url: p.imagenUrl,
   precio_unitario: p.precioUnitario,
   stock_disponible: p.stockDisponible,
@@ -29,9 +35,10 @@ const mapProduct = (p) => ({
 
 export const productService = {
   getAll: async (params = {}) => {
-    const list = await api.get('/productos', { params: { search: params.search } }).then(r => r.data)
+    const list = await api.get('/productos', { params: { search: params.search, tipoInventario: params.tipoInventario } }).then(r => r.data)
     let data = list.map(mapProduct)
     if (params.categoria) data = data.filter(p => p.categoria === params.categoria)
+    if (params.tipoInventario) data = data.filter(p => p.tipo_inventario === params.tipoInventario)
     return { data, total: data.length }
   },
 
@@ -41,6 +48,10 @@ export const productService = {
 
   create: async (payload) => {
     return api.post('/productos', toBackendPayload(payload)).then(r => mapProduct(r.data))
+  },
+
+  addStock: async (id, cantidad) => {
+    return api.post(`/productos/${id}/stock`, { cantidad }).then(r => mapProduct(r.data))
   },
 
   update: async (id, payload) => {
