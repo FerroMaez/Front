@@ -54,6 +54,10 @@ export const productService = {
     return api.post(`/productos/${id}/stock`, { cantidad }).then(r => mapProduct(r.data))
   },
 
+  transferArrangement: async (id, inventarioProductoId) => {
+    return api.post(`/productos/${id}/transferir-inventario`, { inventarioProductoId }).then(r => mapProduct(r.data))
+  },
+
   update: async (id, payload) => {
     return api.put(`/productos/${id}`, toBackendPayload(payload)).then(r => mapProduct(r.data))
   },
