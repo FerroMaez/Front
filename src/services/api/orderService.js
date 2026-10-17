@@ -6,6 +6,8 @@ const mapOrder = (o) => ({
   estado: o.estado,
   total_cotizacion: Number(o.totalCotizacion) || 0,
   motivo_cancelacion: o.motivoCancelacion,
+  es_venta_fisica: o.esVentaFisica,
+  descripcion: o.descripcion,
   fecha_creacion: o.fechaCreacion,
   fecha_cierre: o.fechaCierre,
   facturacion_estado: o.facturacionEstado,
@@ -56,10 +58,11 @@ export const orderService = {
     return api.post(`/ordenes/${id}/aprobar`).then(r => mapOrder(r.data))
   },
 
-  ventaFisica: async (items, cliente) => {
+  ventaFisica: async (items, cliente, descripcion) => {
     return api.post('/ordenes/venta-fisica', {
       items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
       cliente,
+      descripcion,
     }).then(r => mapOrder(r.data))
   },
 

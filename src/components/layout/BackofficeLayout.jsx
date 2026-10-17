@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { FaTachometerAlt, FaBoxes, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa'
+import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa'
 import { useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -19,6 +19,7 @@ export default function BackofficeLayout() {
   const links = [
     { to: '/backoffice',               label: 'Dashboard',  icon: <FaTachometerAlt size={15}/>, exact: true },
     { to: '/backoffice/inventario',    label: 'Inventario', icon: <FaBoxes size={15}/> },
+    { to: '/backoffice/arreglos',      label: 'Arreglos',   icon: <FaTools size={15}/> },
     { to: '/backoffice/ordenes',       label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
     { to: '/backoffice/notificaciones', label: 'Alertas',   icon: <FaBell size={15}/>, badge: unreadCount },
   ]

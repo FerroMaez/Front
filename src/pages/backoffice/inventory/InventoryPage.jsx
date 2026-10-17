@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaExclamationTriangle, FaChevronRight, FaCheckCircle } from 'react-icons/fa'
+import { FaPlus, FaEdit, FaSearch, FaChevronRight, FaCheckCircle } from 'react-icons/fa'
 import { productService } from '../../../services/api/productService'
 import { LINEAS_SERVICIO } from '../../../features/catalog/mockProducts'
 import { catalogProducts } from '../../../features/catalog/catalogData'
@@ -7,15 +7,12 @@ import { formatCOP } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
 import StockBadge from '../../../components/shared/StockBadge'
 
-const RAZONES = [
-  'Entrada por proveedor', 'Ajuste por merma o daño', 'Venta telefónica manual',
-  'Devolución de cliente', 'Corrección de conteo físico', 'Otro',
-]
+const MEDIDAS_PULGADAS = ['1/2', '3/4', '1"', '1 1/4"', '1 1/2"', '2"', '2 1/2"', '3"', '4"']
 
 const emptyForm = {
   linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
   descripcion: '', precio_unitario: '', stock_disponible: '', stock_minimo: '',
-  estado: 'ACTIVO',
+  estado: 'ACTIVO', pulgadas: '', condicion: 'NUEVO', tipo_inventario: 'INVENTARIO',
 }
 
 // ── Funciones puras (fuera del componente para reducir complejidad cognitiva) ──
@@ -30,62 +27,76 @@ function buildErrors(form) {
   if (!form.linea_servicio)                                          e.linea_servicio  = 'Selecciona la línea de servicio'
   if (!form.nombre)                                                  e.nombre          = 'Selecciona el producto del catálogo'
   if (!form.precio_unitario || Number(form.precio_unitario) <= 0)    e.precio_unitario = 'Precio inválido'
-  if (form.stock_disponible === '' || Number(form.stock_disponible) < 0) e.stock_disponible = 'Stock inválido'
+  if (form.stock_disponible === '' || !Number.isSafeInteger(Number(form.stock_disponible)) || Number(form.stock_disponible) < 0) e.stock_disponible = 'Ingresa un stock entero vÃ¡lido'
   if (form.stock_minimo     === '' || Number(form.stock_minimo)     < 0) e.stock_minimo     = 'Stock mínimo inválido'
   return e
 }
 
-export default function InventoryPage() {
+export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 'Inventario' }) {
   const [products,    setProducts]    = useState([])
   const [search,      setSearch]      = useState('')
   const [lineaFiltro, setLineaFiltro] = useState('')
-  const [modal,       setModal]       = useState(null)   // null | 'create' | 'edit' | 'delete'
-  const [selected,    setSelected]    = useState(null)
+  const [modal,       setModal]       = useState(null)   // null | 'create' | 'edit'
+  const [selected, setSelected] = useState(null)
+  const [editOptions, setEditOptions] = useState([])
   const [form,        setForm]        = useState(emptyForm)
   const [errors,      setErrors]      = useState({})
-  const [stockChange, setStockChange] = useState(false)
-  const [razon,       setRazon]       = useState('')
-  const [razonOtro,   setRazonOtro]   = useState('')
   const [loading,     setLoading]     = useState(false)
   const [toast,       setToast]       = useState('')
+  const [errorStock, setErrorStock] = useState('')
+  const [cantidadAgregar, setCantidadAgregar] = useState('')
 
   const load = useCallback(async () => {
     try {
-      const { data } = await productService.getAll({ search })
+      const { data } = await productService.getAll({ search, tipoInventario })
       const filtered = lineaFiltro ? data.filter(p => p.linea_servicio === lineaFiltro) : data
       setProducts(filtered)
     } catch {
       // mantiene la lista anterior si falla la red
     }
-  }, [search, lineaFiltro])
+  }, [search, lineaFiltro, tipoInventario])
 
   useEffect(() => { load() }, [load])
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   const openCreate = () => {
-    setForm(emptyForm); setErrors({}); setRazon(''); setRazonOtro('')
+    setForm({ ...emptyForm, tipo_inventario: tipoInventario }); setErrors({}); setErrorStock(''); setCantidadAgregar('')
     setModal('create')
   }
 
-  const openEdit = (p) => {
-    setSelected(p)
-    setForm({
-      linea_servicio:   p.linea_servicio  || '',
-      nombre:           p.nombre          || '',
-      imagen_url:       p.imagen_url      || '',
-      categoria:        p.categoria       || 'OTRO',
-      descripcion:      p.descripcion     || '',
-      precio_unitario:  String(p.precio_unitario),
-      stock_disponible: String(p.stock_disponible),
-      stock_minimo:     String(p.stock_minimo),
-      estado:           p.estado          || 'ACTIVO',
-    })
-    setErrors({}); setStockChange(false); setRazon(''); setRazonOtro('')
+  const openEdit = async () => {
+    setSelected(null)
+    setForm({ ...emptyForm, tipo_inventario: tipoInventario })
+    setErrors({})
+    setErrorStock('')
+    setCantidadAgregar('')
     setModal('edit')
+    try {
+      const { data } = await productService.getAll({ tipoInventario })
+      setEditOptions(data)
+    } catch {
+      showToast('No se pudieron cargar los productos para editar.')
+    }
   }
 
-  const openDelete = (p) => { setSelected(p); setModal('delete') }
+  const selectEditProduct = (p) => {
+    if (!p) {
+      setSelected(null)
+      setForm(f => ({ ...emptyForm, tipo_inventario: tipoInventario, linea_servicio: f.linea_servicio }))
+      return
+    }
+    setSelected(p)
+    setForm({
+      linea_servicio: p.linea_servicio || '', nombre: p.nombre || '', imagen_url: p.imagen_url || '',
+      categoria: p.categoria || 'OTRO', descripcion: p.descripcion || '', pulgadas: p.pulgadas || '',
+      condicion: p.condicion || 'NUEVO', tipo_inventario: p.tipo_inventario || tipoInventario,
+      precio_unitario: String(p.precio_unitario), stock_disponible: String(p.stock_disponible),
+      stock_minimo: String(p.stock_minimo), estado: p.estado || 'ACTIVO',
+    })
+    setErrors({})
+    setErrorStock('')
+  }
 
   // Al seleccionar un producto del catálogo → auto-asigna nombre + imagen + categoria
   const handleSelectSubcat = (subcat) => {
@@ -95,13 +106,10 @@ export default function InventoryPage() {
 
   const handleStockChange = (val) => {
     setForm(f => ({ ...f, stock_disponible: val }))
-    if (modal === 'edit') setStockChange(String(val) !== String(selected?.stock_disponible))
   }
 
   const validate = () => {
     const e = buildErrors(form)
-    const stockReasonMissing = modal === 'edit' && stockChange && !razon
-    if (stockReasonMissing) e.razon = 'La razón del cambio es obligatoria.'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -113,6 +121,7 @@ export default function InventoryPage() {
       const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)
       const payload = {
         ...form,
+        tipo_inventario: tipoInventario,
         precio_unitario:  Number(form.precio_unitario),
         stock_disponible: Number(form.stock_disponible),
         stock_minimo:     Number(form.stock_minimo),
@@ -122,22 +131,18 @@ export default function InventoryPage() {
         await productService.create(payload)
         showToast('Producto creado exitosamente.')
       } else {
-        await productService.update(selected.id, { ...payload, razon_stock: razon || razonOtro })
-        showToast('Producto actualizado correctamente.')
+        const incremento = cantidadAgregar === '' ? 0 : Number(cantidadAgregar)
+        if (!Number.isSafeInteger(incremento) || incremento < 0) {
+          setErrorStock('Ingresa una cantidad entera igual o mayor que cero.')
+          return
+        }
+        await productService.update(selected.id, payload)
+        if (incremento > 0) await productService.addStock(selected.id, incremento)
+        showToast(incremento > 0 ? `Producto actualizado y se agregaron ${incremento} unidades.` : 'Producto actualizado correctamente.')
       }
       setModal(null); load()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDelete = async () => {
-    if (selected?.stock_reservado > 0) return
-    setLoading(true)
-    try {
-      await productService.delete(selected.id)
-      showToast('Producto desactivado.')
-      setModal(null); load()
+    } catch {
+      showToast('No se pudieron guardar los cambios. Revisa la conexión e intenta de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -161,12 +166,17 @@ export default function InventoryPage() {
       {/* Encabezado */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Inventario</h1>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>{titulo}</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{products.length} productos registrados</p>
         </div>
-        <button onClick={openCreate} className="btn-primary text-sm gap-2">
-          <FaPlus size={12} /> Agregar producto
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={openEdit} disabled={loading} className="btn-outline text-sm gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <FaEdit size={12} /> Editar producto
+          </button>
+          <button onClick={openCreate} className="btn-primary text-sm gap-2">
+            <FaPlus size={12} /> Agregar producto
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -191,7 +201,7 @@ export default function InventoryPage() {
           <table className="text-sm data-table">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--bd-1)' }}>
-                {['Producto', 'Línea de servicio', 'Precio', 'Stock', 'Estado', ''].map(h => (
+                {['Producto', 'Linea de servicio', 'Medida', 'Condicion', 'Precio', 'Stock', 'Estado'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tx-3)' }}>{h}</th>
                 ))}
               </tr>
@@ -199,7 +209,7 @@ export default function InventoryPage() {
             <tbody>
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
                     No hay productos registrados aún. Haz clic en <strong>&quot;Agregar producto&quot;</strong> para comenzar.
                   </td>
                 </tr>
@@ -230,18 +240,14 @@ export default function InventoryPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3">{p.pulgadas || '—'}</td>
+                    <td className="px-4 py-3">{p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo'}</td>
                     <td className="px-4 py-3 font-bold text-sm text-brand-600 dark:text-brand-300">{formatCOP(p.precio_unitario)}</td>
                     <td className="px-4 py-3"><StockBadge disponible={p.stock_disponible} minimo={p.stock_minimo} showCount /></td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${p.estado === 'ACTIVO' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/25' : 'bg-red-500/10 text-red-500 border-red-500/25'}`}>
                         {p.estado}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1.5">
-                        <button onClick={() => openEdit(p)} className="p-2 rounded-lg hover:bg-brand-500/10 transition-colors text-brand-500"><FaEdit size={13} /></button>
-                        <button onClick={() => openDelete(p)} className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-red-500"><FaTrash size={13} /></button>
-                      </div>
                     </td>
                   </tr>
                 )
@@ -256,7 +262,7 @@ export default function InventoryPage() {
       ═══════════════════════════════════════════ */}
       <Modal isOpen={modal === 'create' || modal === 'edit'}
         onClose={() => setModal(null)}
-        title={modal === 'create' ? 'Agregar Producto al Inventario' : `Editar: ${selected?.nombre}`}
+        title={modal === 'create' ? 'Agregar Producto al Inventario' : selected ? `Editar: ${selected.nombre}` : 'Editar producto'}
         size="lg">
         <div className="space-y-6">
 
@@ -272,17 +278,22 @@ export default function InventoryPage() {
                 const isActive = form.linea_servicio === l.value
                 return (
                   <button key={l.value} type="button"
-                    disabled={modal === 'edit'}
                     onClick={() => {
-                      setForm(f => ({ ...f, linea_servicio: l.value, nombre: '', imagen_url: '' }))
+                      if (modal === 'edit') {
+                        setSelected(null)
+                        setForm({ ...emptyForm, tipo_inventario: tipoInventario, linea_servicio: l.value })
+                        setErrorStock('')
+                      } else {
+                        setForm(f => ({ ...f, linea_servicio: l.value, nombre: '', imagen_url: '' }))
+                      }
                       setErrors(e => ({ ...e, linea_servicio: '', nombre: '' }))
                     }}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-left disabled:cursor-not-allowed"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-left"
                     style={{
                       backgroundColor: isActive ? l.color : 'var(--bg-surface)',
                       borderColor:     isActive ? l.colorBorder : 'var(--bd-1)',
                       color:           isActive ? 'var(--tx-1)' : 'var(--tx-2)',
-                      opacity:         modal === 'edit' ? 0.7 : 1,
+                      opacity: 1,
                       boxShadow:       isActive ? `0 2px 12px -2px ${l.colorBorder}` : 'none',
                     }}>
                     <img src={`/servicios/${l.folder}/logo.jpeg`} alt={l.label}
@@ -361,28 +372,53 @@ export default function InventoryPage() {
             </div>
           )}
 
-          {/* En EDITAR: mostrar producto bloqueado */}
           {modal === 'edit' && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>Producto</p>
-              <div className="flex items-center gap-3 p-3.5 rounded-2xl"
-                style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--bd-1)' }}>
-                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"
-                  style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-                  <img src={form.imagen_url} alt={form.nombre}
-                    className="w-full h-full object-contain p-1"
-                    onError={e => { e.target.src = '/newLogo3.jpeg' }} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>{form.nombre}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--tx-3)' }}>El producto no se puede cambiar una vez creado</p>
-                </div>
-              </div>
+              {!form.linea_servicio ? (
+                <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Selecciona primero una linea de servicio.</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+                    {editOptions.filter(p => p.linea_servicio === form.linea_servicio).map(p => {
+                      const isSelected = selected?.id === p.id
+                      return (
+                        <button key={p.id} type="button" onClick={() => selectEditProduct(p)}
+                          className="flex items-center gap-2 p-2.5 rounded-xl text-left text-xs font-medium transition-all border"
+                          style={{
+                            backgroundColor: isSelected ? 'rgba(140,144,59,0.12)' : 'var(--bg-surface)',
+                            borderColor: isSelected ? 'rgba(140,144,59,0.5)' : 'var(--bd-1)',
+                            color: isSelected ? 'var(--tx-1)' : 'var(--tx-2)',
+                            boxShadow: isSelected ? '0 2px 8px -2px rgba(140,144,59,0.2)' : 'none',
+                          }}>
+                          <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0"
+                            style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+                            <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-0.5"
+                              onError={e => { e.target.src = '/newLogo3.jpeg' }} />
+                          </div>
+                          <span className="leading-snug">
+                            {p.nombre}
+                            {(p.pulgadas || p.condicion === 'REMANUFACTURADO') && (
+                              <span className="block mt-0.5 text-[10px]" style={{ color: 'var(--tx-3)' }}>
+                                {[p.pulgadas, p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo'].filter(Boolean).join(' · ')}
+                              </span>
+                            )}
+                          </span>
+                          {isSelected && <FaCheckCircle size={11} className="ml-auto flex-shrink-0 text-brand-500" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {editOptions.filter(p => p.linea_servicio === form.linea_servicio).length === 0 && (
+                    <p className="mt-2 text-xs" style={{ color: 'var(--tx-3)' }}>No hay productos registrados en esta linea.</p>
+                  )}
+                </>
+              )}
             </div>
           )}
 
-          {/* ── PASO 3: Datos de inventario ── */}
-          {(form.nombre || modal === 'edit') && (
+          {/* Datos del inventario */}
+          {(form.nombre || (modal === 'edit' && selected)) && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: 'var(--tx-3)' }}>
                 <span className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center font-bold flex-shrink-0">
@@ -392,6 +428,24 @@ export default function InventoryPage() {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="inv-medida" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Medida (pulgadas)</label>
+                  <select id="inv-medida" value={form.pulgadas} onChange={e => setForm(f => ({ ...f, pulgadas: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                    style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
+                    <option value="">Sin medida</option>
+                    {MEDIDAS_PULGADAS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="inv-condicion" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Condición</label>
+                  <select id="inv-condicion" value={form.condicion} onChange={e => setForm(f => ({ ...f, condicion: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                    style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
+                    <option value="NUEVO">Nuevo</option>
+                    <option value="REMANUFACTURADO">Remanufacturado</option>
+                  </select>
+                </div>
                 {/* Precio */}
                 <div>
                   <label htmlFor="inv-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
@@ -408,14 +462,25 @@ export default function InventoryPage() {
                 {/* Stock disponible */}
                 <div>
                   <label htmlFor="inv-stock" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
-                    Stock disponible <span className="text-red-500">*</span>
+                    {modal === 'edit' ? 'Stock disponible actual' : 'Stock disponible'} <span className="text-red-500">*</span>
                   </label>
-                  <input id="inv-stock" type="number" min="0" placeholder="10"
+                  <input id="inv-stock" type="number" min="0" step="1" inputMode="numeric" placeholder="10" readOnly={modal === 'edit'}
                     value={form.stock_disponible}
-                    onChange={e => handleStockChange(e.target.value)}
+                    onChange={e => { handleStockChange(e.target.value); setErrorStock('') }}
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
-                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.stock_disponible ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
+                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.stock_disponible || errorStock ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
+                  {modal === 'edit' && (
+                    <div className="mt-2">
+                      <label htmlFor="inv-stock-add" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Cantidad que se va a sumar</label>
+                      <input id="inv-stock-add" type="number" min="0" step="1" inputMode="numeric" value={cantidadAgregar}
+                        onChange={e => { setCantidadAgregar(e.target.value); setErrorStock('') }}
+                        className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                        style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+                      <p className="mt-1 text-[10px]" style={{ color: 'var(--tx-3)' }}>Stock actual: {selected?.stock_disponible}. Total nuevo: {Number(selected?.stock_disponible || 0) + (Number(cantidadAgregar) || 0)}.</p>
+                    </div>
+                  )}
                   {errors.stock_disponible && <p className="mt-0.5 text-[10px] text-red-500">{errors.stock_disponible}</p>}
+                  {errorStock && <p className="mt-0.5 text-[10px] text-red-500">{errorStock}</p>}
                 </div>
 
                 {/* Stock mínimo */}
@@ -456,71 +521,19 @@ export default function InventoryPage() {
                   </select>
                 </div>
               </div>
-
-              {/* ── Razón cambio stock (solo edición cuando cambia) ── */}
-              {modal === 'edit' && stockChange && (
-                <div className="mt-4 p-4 rounded-2xl" style={{ backgroundColor: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <FaExclamationTriangle className="text-yellow-500" size={14} />
-                    <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>
-                      Razón del cambio de stock <span className="text-red-500">*</span>
-                    </p>
-                  </div>
-                  <select value={razon}
-                    onChange={e => { setRazon(e.target.value); setErrors(er => ({ ...er, razon: '' })) }}
-                    className="w-full px-3 py-2 rounded-xl text-sm outline-none appearance-none mb-2"
-                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.razon ? '#ef4444' : 'var(--bd-1)'}`, color: razon ? 'var(--tx-1)' : 'var(--tx-3)' }}>
-                    <option value="">Selecciona la razón…</option>
-                    {RAZONES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  {razon === 'Otro' && (
-                    <input type="text" placeholder="Especifica la razón…" value={razonOtro}
-                      onChange={e => setRazonOtro(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
-                      style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
-                  )}
-                  {errors.razon && <p className="mt-1 text-xs text-red-500">{errors.razon}</p>}
-                </div>
-              )}
             </div>
           )}
 
           {/* ── Botones ── */}
           <div className="flex gap-3 pt-1">
             <button onClick={handleSave}
-              disabled={loading || (modal === 'edit' && stockChange && !razon)}
+              disabled={loading || (modal === 'edit' && !selected)}
               className="btn-primary flex-1 justify-center py-2.5 disabled:opacity-50">
               {saveLabel}
             </button>
             <button onClick={() => setModal(null)} className="btn-outline flex-1 justify-center">Cancelar</button>
           </div>
         </div>
-      </Modal>
-
-      {/* ═══════ Modal Eliminar ═══════ */}
-      <Modal isOpen={modal === 'delete'} onClose={() => setModal(null)} title="Desactivar producto" size="sm">
-        {selected?.stock_reservado > 0 ? (
-          <div className="text-center py-4">
-            <FaExclamationTriangle className="mx-auto mb-3 text-yellow-500" size={32} />
-            <p className="font-semibold mb-2" style={{ color: 'var(--tx-1)' }}>No se puede eliminar</p>
-            <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
-              El producto tiene <strong>{selected?.stock_reservado}</strong> unidades reservadas en órdenes activas.
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm mb-5" style={{ color: 'var(--tx-2)' }}>
-              ¿Desactivar <strong>{selected?.nombre}</strong>? Dejará de aparecer en el catálogo pero conservará su historial.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={handleDelete} disabled={loading}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-60">
-                {loading ? 'Desactivando…' : 'Desactivar'}
-              </button>
-              <button onClick={() => setModal(null)} className="btn-outline flex-1 justify-center">Cancelar</button>
-            </div>
-          </>
-        )}
       </Modal>
     </div>
   )
