@@ -11,6 +11,7 @@ let stompClient = null
 let lastStatus = 'connecting'
 const alertaListeners = new Set()
 const ordenListeners  = new Set()
+const ventaOfflineListeners = new Set()
 const statusListeners = new Set()
 
 function notifyAll(set, data) {
@@ -25,6 +26,11 @@ export const websocketService = {
   onOrden(fn) {
     ordenListeners.add(fn)
     return () => ordenListeners.delete(fn)
+  },
+  /** Resultado de una venta offline procesada por el broker (CONFIRMADA / DUPLICADA / RECHAZADA). */
+  onVentaOffline(fn) {
+    ventaOfflineListeners.add(fn)
+    return () => ventaOfflineListeners.delete(fn)
   },
   onStatus(fn) {
     statusListeners.add(fn)
@@ -45,6 +51,9 @@ export const websocketService = {
         notifyAll(statusListeners, 'connected')
         stompClient.subscribe('/topic/alertas', (msg) => {
           try { notifyAll(alertaListeners, JSON.parse(msg.body)) } catch (_) {}
+        })
+        stompClient.subscribe('/topic/ventas-offline', (msg) => {
+          try { notifyAll(ventaOfflineListeners, JSON.parse(msg.body)) } catch (_) {}
         })
         stompClient.subscribe('/topic/ordenes', (msg) => {
           try { notifyAll(ordenListeners, JSON.parse(msg.body)) } catch (_) {}
