@@ -1,13 +1,24 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FaPlus, FaEdit, FaSearch, FaChevronRight, FaCheckCircle } from 'react-icons/fa'
 import { productService } from '../../../services/api/productService'
-import { LINEAS_SERVICIO } from '../../../features/catalog/mockProducts'
+import { LINEAS_SERVICIO, getStockStatus } from '../../../features/catalog/mockProducts'
 import { catalogProducts } from '../../../features/catalog/catalogData'
+import { getMedidasProducto } from '../../../features/catalog/productMeasures'
 import { formatCOP } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
-import StockBadge from '../../../components/shared/StockBadge'
+import imagenHidraulica from '../../../assets/lineas/hidraulica.jpeg'
+import imagenIncendio from '../../../assets/lineas/incendio.jpeg'
+import imagenAcueducto from '../../../assets/lineas/acueducto.jpeg'
+import imagenAcero from '../../../assets/lineas/acero.jpeg'
+import imagenPvc from '../../../assets/lineas/pvc.jpg'
 
-const MEDIDAS_PULGADAS = ['1/2', '3/4', '1"', '1 1/4"', '1 1/2"', '2"', '2 1/2"', '3"', '4"']
+const IMAGEN_LINEA = {
+  HIDRAULICA: imagenHidraulica,
+  INCENDIO: imagenIncendio,
+  ACUEDUCTO: imagenAcueducto,
+  ACERO: imagenAcero,
+  PVC: imagenPvc,
+}
 
 const emptyForm = {
   linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
@@ -53,12 +64,13 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   const load = useCallback(async () => {
     try {
       const { data } = await productService.getAll({ search, tipoInventario })
-      const filtered = lineaFiltro ? data.filter(p => p.linea_servicio === lineaFiltro) : data
+      const filtered = data.filter(p => (!lineaFiltro || p.linea_servicio === lineaFiltro)
+        && (!isArreglos || Number(p.stock_disponible) > 0))
       setProducts(filtered)
     } catch {
       // mantiene la lista anterior si falla la red
     }
-  }, [search, lineaFiltro, tipoInventario])
+  }, [search, lineaFiltro, tipoInventario, isArreglos])
 
   useEffect(() => { load() }, [load])
 
@@ -104,7 +116,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
   // Al seleccionar un producto del catálogo → auto-asigna nombre + imagen + categoria
   const handleSelectSubcat = (subcat) => {
-    setForm(f => ({ ...f, nombre: subcat.nombre, imagen_url: subcat.imagen, categoria: subcat.categoria }))
+    setForm(f => ({ ...f, nombre: subcat.nombre, imagen_url: subcat.imagen, categoria: subcat.categoria, pulgadas: '' }))
     setErrors(e => ({ ...e, nombre: '' }))
   }
 
@@ -198,6 +210,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       const cantidad = arreglo.stock_disponible
       await productService.transferArrangement(arreglo.id, destino.id)
       showToast('Se sumaron ' + cantidad + ' unidades a ' + destino.nombre + '.')
+      setProducts(current => current.filter(p => p.id !== arreglo.id))
       await load()
     } catch (err) {
       showToast(err.response?.data?.message || 'No se pudo sumar el arreglo al inventario.')
@@ -207,6 +220,10 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   }
 
   const currentSubcats = subcatsForLinea(form.linea_servicio)
+  const medidasProducto = getMedidasProducto(form.nombre, form.linea_servicio)
+  const opcionesMedida = form.pulgadas && !medidasProducto.includes(form.pulgadas)
+    ? [form.pulgadas, ...medidasProducto]
+    : medidasProducto
 
   // Etiqueta de guardado (sin ternarios anidados)
   let saveLabel = 'Guardar cambios'
@@ -259,7 +276,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           <table className="text-sm data-table">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--bd-1)' }}>
-                {(isArreglos ? ['Producto', 'Línea de servicio', 'Medida', 'Condición', 'Cantidad', 'Acción'] : ['Producto', 'Linea de servicio', 'Medida', 'Condicion', 'Precio', 'Stock', 'Estado']).map(h => (
+                {(isArreglos ? ['Producto', 'Línea de servicio', 'Medida', 'Condición', 'Cantidad', 'Acción'] : ['Producto', 'Linea de servicio', 'Medida', 'Condicion', 'Precio', 'Cantidad']).map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tx-3)' }}>{h}</th>
                 ))}
               </tr>
@@ -267,7 +284,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
             <tbody>
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={isArreglos ? 6 : 7} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
+                  <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
                     No hay productos registrados aún. Haz clic en <strong>&quot;Agregar producto&quot;</strong> para comenzar.
                   </td>
                 </tr>
@@ -313,11 +330,16 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     ) : (
                       <>
                         <td className="px-4 py-3 font-bold text-sm text-brand-600 dark:text-brand-300">{formatCOP(p.precio_unitario)}</td>
-                        <td className="px-4 py-3"><StockBadge disponible={p.stock_disponible} minimo={p.stock_minimo} showCount /></td>
                         <td className="px-4 py-3">
-                          <span className={'px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (p.estado === 'ACTIVO' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/25' : 'bg-red-500/10 text-red-500 border-red-500/25')}>
-                            {p.estado}
-                          </span>
+                          {(() => {
+                            const color = getStockStatus(Number(p.stock_disponible) || 0, Number(p.stock_minimo) || 0).color
+                            const colors = {
+                              green: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/25',
+                              yellow: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/25',
+                              red: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/25',
+                            }
+                            return <span className={`inline-flex min-w-14 justify-center px-3 py-1 rounded-full text-lg font-extrabold border ${colors[color]}`} aria-label={`Cantidad: ${p.stock_disponible}`}>{p.stock_disponible}</span>
+                          })()}
                         </td>
                       </>
                     )}
@@ -356,7 +378,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                         setForm({ ...emptyForm, tipo_inventario: tipoInventario, linea_servicio: l.value })
                         setErrorStock('')
                       } else {
-                        setForm(f => ({ ...f, linea_servicio: l.value, nombre: '', imagen_url: '' }))
+                        setForm(f => ({ ...f, linea_servicio: l.value, nombre: '', imagen_url: '', pulgadas: '' }))
                       }
                       setErrors(e => ({ ...e, linea_servicio: '', nombre: '' }))
                     }}
@@ -368,9 +390,9 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                       opacity: 1,
                       boxShadow:       isActive ? `0 2px 12px -2px ${l.colorBorder}` : 'none',
                     }}>
-                    <img src={`/servicios/${l.folder}/logo.jpeg`} alt={l.label}
-                      className="w-6 h-6 rounded-lg object-cover flex-shrink-0"
-                      onError={e => { e.target.src = '/newLogo3.jpeg' }} />
+                    <img src={IMAGEN_LINEA[l.value]} alt={l.label}
+                      className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = imagenHidraulica }} />
                     {l.label}
                     {isActive && <FaCheckCircle size={11} className="ml-auto flex-shrink-0 text-brand-500" />}
                   </button>
@@ -505,8 +527,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   <select id="inv-medida" value={form.pulgadas} onChange={e => setForm(f => ({ ...f, pulgadas: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none"
                     style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
-                    <option value="">Sin medida</option>
-                    {MEDIDAS_PULGADAS.map(m => <option key={m} value={m}>{m}</option>)}
+                    <option value="">{opcionesMedida.length ? 'Sin medida' : 'Este producto no tiene medidas configuradas'}</option>
+                    {opcionesMedida.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 {isArreglos ? (
