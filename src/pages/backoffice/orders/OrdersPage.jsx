@@ -8,6 +8,11 @@ import { productService } from '../../../services/api/productService'
 import { formatCOP, formatDate } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
 import { websocketService } from '../../../services/api/websocketService'
+import { encolarVenta, esErrorDeRed, nuevaClave, ventasOfflineSync } from '../../../services/offline/ventasOfflineSync'
+import VentasOfflinePanel from './VentasOfflinePanel'
+import { useOfflineStore } from '../../../store/offlineStore'
+
+const CACHE_PRODUCTOS = 'manhid-productos-venta'
 
 const STATES  = ['PENDIENTE', 'EN_PROCESO', 'VENTA_EXITOSA', 'CANCELADA']
 const MOTIVOS = ['Cliente no contestó', 'Cliente desistió de la compra', 'Producto no disponible a precios acordados', 'Error de cotización', 'Otro']
@@ -51,8 +56,9 @@ export default function OrdersPage() {
   useEffect(() => {
     websocketService.connect()
     const unsub = websocketService.onOrden(load)
+    const unsubOffline = ventasOfflineSync.onResultado(load)   // venta offline ya registrada
     const interval = setInterval(load, 20000)
-    return () => { unsub(); clearInterval(interval) }
+    return () => { unsub(); unsubOffline(); clearInterval(interval) }
   }, [load])
 
   useEffect(() => {
@@ -62,9 +68,16 @@ export default function OrdersPage() {
     setVfCliente({ nombre: '', telefono: '', email: '' })
     setVfDescripcion('')
     setVfErrors({})
+    // Se guarda una copia del catálogo para poder vender aunque se caiga el internet.
     productService.getAll()
-      .then(r => setProductos(r.data.filter(p => p.estado === 'ACTIVO' && p.stock_disponible > 0)))
-      .catch(() => {})
+      .then(r => {
+        const activos = r.data.filter(p => p.estado === 'ACTIVO' && p.stock_disponible > 0)
+        setProductos(activos)
+        try { localStorage.setItem(CACHE_PRODUCTOS, JSON.stringify(activos)) } catch (_) {}
+      })
+      .catch(() => {
+        try { setProductos(JSON.parse(localStorage.getItem(CACHE_PRODUCTOS) || '[]')) } catch (_) {}
+      })
   }, [vfOpen])
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
@@ -75,6 +88,17 @@ export default function OrdersPage() {
     if (qty <= 0) { const next = { ...prev }; delete next[id]; return next }
     return { ...prev, [id]: qty }
   })
+
+  // Unidades ya comprometidas en ventas offline que aún no llegan al backend (el stock del
+  // servidor todavía no las descuenta). Las rechazadas no cuentan: esas no se registraron.
+  const ventasOffline = useOfflineStore(s => s.ventas)
+  const reservadoOffline = ventasOffline
+    .filter(v => v.estado !== 'RECHAZADA')
+    .flatMap(v => v.venta.items)
+    .reduce((acc, i) => ({ ...acc, [i.productoId]: (acc[i.productoId] || 0) + i.cantidad }), {})
+  // Lo que realmente se puede vender: físico − reservado para cotizaciones − ventas offline pendientes
+  const stockVendible = (p) => Math.max(0,
+    (p.stock_disponible ?? 0) - (p.stock_reservado ?? 0) - (reservadoOffline[p.id] || 0))
 
   const vfItems = Object.entries(cantidades).filter(([, q]) => q > 0).map(([id, cantidad]) => ({ productoId: +id, cantidad }))
   const vfTotal = Object.entries(cantidades).reduce((sum, [id, qty]) => {
@@ -133,10 +157,20 @@ export default function OrdersPage() {
         telefono: vfCliente.telefono || null,
         email: vfCliente.email || null,
       }
-      const venta = await orderService.ventaFisica(vfItems, cliente, vfDescripcion)
-      setOrders(prev => [venta, ...prev.filter(o => o.id !== venta.id)])
-      setFilter('all')
-      showToast('Venta física registrada correctamente')
+      const clave = nuevaClave()
+      const items = vfItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad }))
+      try {
+        const venta = await orderService.ventaFisica(items, cliente, vfDescripcion, clave)
+        setOrders(prev => [venta, ...prev.filter(o => o.id !== venta.id)])
+        setFilter('all')
+        showToast('Venta física registrada correctamente')
+      } catch (err) {
+        if (!esErrorDeRed(err)) throw err
+        // Sin internet (o se cortó a mitad): se guarda en la cola local con la MISMA clave.
+        // Si la venta sí alcanzó a llegar, al sincronizar el backend la detecta como duplicada.
+        await encolarVenta({ clave, items, cliente, descripcion: vfDescripcion })
+        showToast('📴 Sin conexión: la venta quedó guardada y se enviará sola al volver el internet')
+      }
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || 'Error al registrar la venta física'
       showToast(msg)
@@ -186,6 +220,9 @@ export default function OrdersPage() {
           </button>
         </div>
       </div>
+
+      {/* Ventas hechas sin internet, pendientes de sincronizar o rechazadas */}
+      <VentasOfflinePanel />
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -401,22 +438,34 @@ export default function OrdersPage() {
           <div className="text-center py-8" style={{ color: 'var(--tx-3)' }}>Cargando productos…</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1 mb-4">
-            {productos.map(p => (
+            {productos.map(p => {
+              const stock = stockVendible(p)
+              const bajo  = stock <= (p.stock_minimo ?? 0)
+              return (
               <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border transition-colors"
-                style={{ backgroundColor: 'var(--bg-surface)', borderColor: cantidades[p.id] ? 'rgba(140,144,59,0.5)' : 'var(--bd-1)' }}>
+                style={{ backgroundColor: 'var(--bg-surface)', borderColor: cantidades[p.id] ? 'rgba(140,144,59,0.5)' : 'var(--bd-1)', opacity: stock > 0 ? 1 : 0.5 }}>
                 <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
                   <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-1" onError={e => { e.target.src = '/newLogo3.jpeg' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>{p.nombre}</p>
+                  <p className={`text-xs font-semibold mt-0.5 ${bajo ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
+                    Stock: {stock} und.{bajo && stock > 0 ? ' · bajo' : ''}{stock === 0 ? ' · agotado' : ''}
+                  </p>
+                  {(reservadoOffline[p.id] || 0) > 0 && (
+                    <p className="text-[11px]" style={{ color: 'var(--tx-3)' }}>
+                      {reservadoOffline[p.id]} und. en ventas sin sincronizar
+                    </p>
+                  )}
                 </div>
-                <input aria-label={'Cantidad de ' + p.nombre} type="number" min="0" max={p.stock_disponible} step="1"
-                  value={cantidades[p.id] || ''} placeholder="0"
-                  onChange={e => setQty(p.id, Math.min(Math.max(0, +e.target.value), p.stock_disponible))}
+                <input aria-label={'Cantidad de ' + p.nombre} type="number" min="0" max={stock} step="1"
+                  value={cantidades[p.id] || ''} placeholder="0" disabled={stock === 0}
+                  onChange={e => setQty(p.id, Math.min(Math.max(0, +e.target.value), stock))}
                   className="w-20 px-2 py-1.5 rounded-lg text-sm text-center outline-none"
                   style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

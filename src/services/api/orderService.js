@@ -58,12 +58,14 @@ export const orderService = {
     return api.post(`/ordenes/${id}/aprobar`).then(r => mapOrder(r.data))
   },
 
-  ventaFisica: async (items, cliente, descripcion) => {
+  // `clave`: UUID de la venta. Si la respuesta se pierde y se reintenta (o la venta pasa a la
+  // cola offline con esa misma clave), el backend NO la registra dos veces.
+  ventaFisica: async (items, cliente, descripcion, clave) => {
     return api.post('/ordenes/venta-fisica', {
       items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
       cliente,
       descripcion,
-    }).then(r => mapOrder(r.data))
+    }, { headers: clave ? { 'Idempotency-Key': clave } : {} }).then(r => mapOrder(r.data))
   },
 
   exportExcel: async () => {

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa'
+import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -7,6 +7,10 @@ import { useThemeStore } from '../../store/themeStore'
 import { websocketService } from '../../services/api/websocketService'
 import { dashboardService } from '../../services/api/dashboardService'
 import { formatCOP } from '../../utils/formatters'
+import { useOfflineStore } from '../../store/offlineStore'
+import { ventasOfflineSync } from '../../services/offline/ventasOfflineSync'
+import { precargarImagenes } from '../../services/offline/serviceWorker'
+import { productService } from '../../services/api/productService'
 import { IoSunnyOutline, IoMoonOutline } from 'react-icons/io5'
 import clsx from 'clsx'
 
@@ -17,6 +21,9 @@ export default function BackofficeLayout() {
   const navigate                  = useNavigate()
   const [sideOpen, setSideOpen]   = useState(false)
   const [toasts, setToasts]       = useState([])
+  const { online, ventas: ventasOffline } = useOfflineStore()
+  const rechazadas = ventasOffline.filter(v => v.estado === 'RECHAZADA').length
+  const pendientes = ventasOffline.length - rechazadas
 
   const handleLogout = () => { logout(); navigate('/') }
 
@@ -63,8 +70,21 @@ export default function BackofficeLayout() {
       }
       addNotification(n); pushToast(n)
     })
+    // Cola de ventas offline: se sincroniza sola al volver el internet.
+    ventasOfflineSync.iniciar()
+    // Guarda las imágenes de todos los productos para que se vean aunque se caiga el wifi.
+    productService.getAll()
+      .then(r => precargarImagenes(['/newLogo3.jpeg', ...r.data.map(p => p.imagen_url)]))
+      .catch(() => {})
+    const unsubOffline = ventasOfflineSync.onResultado((r) => {
+      if (r.estado === 'DUPLICADA') return   // ya estaba registrada: nada que avisar
+      const n = r.estado === 'RECHAZADA'
+        ? { tipo: 'VENTA_OFFLINE_RECHAZADA', titulo: '⚠️ Venta sin internet rechazada', descripcion: r.motivo }
+        : { tipo: 'VENTA_OFFLINE', titulo: `✅ Venta sin internet registrada #${r.ordenId}`, descripcion: `${r.clienteNombre || ''} · ${formatCOP(r.total)}` }
+      addNotification(n); pushToast(n)
+    })
     // No desconectamos: la conexión persiste mientras el JEFE esté en el panel.
-    return () => { unsubAlerta(); unsubOrden() }
+    return () => { unsubAlerta(); unsubOrden(); unsubOffline() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const links = [
@@ -122,6 +142,19 @@ export default function BackofficeLayout() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {(!online || ventasOffline.length > 0) && (
+            <button onClick={() => navigate('/backoffice/ordenes')}
+              title="Ventas guardadas en este equipo sin internet"
+              className={clsx('flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border',
+                !online || rechazadas > 0
+                  ? 'bg-red-500/10 border-red-500/25 text-red-500'
+                  : 'bg-yellow-500/10 border-yellow-500/25 text-yellow-600 dark:text-yellow-300')}>
+              <FaWifi size={12} />
+              {!online && <span>Sin conexión</span>}
+              {pendientes > 0 && <span>{pendientes} por sincronizar</span>}
+              {rechazadas > 0 && <span>{rechazadas} rechazada{rechazadas > 1 ? 's' : ''}</span>}
+            </button>
+          )}
           <button onClick={toggle} className="p-2 rounded-lg hover:bg-brand-500/10 transition-colors" style={{ color: 'var(--tx-2)' }}>
             {theme === 'dark' ? <IoSunnyOutline size={16}/> : <IoMoonOutline size={16}/>}
           </button>
