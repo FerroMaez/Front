@@ -10,7 +10,12 @@ export const catalogProducts = [
       { id: 6, nombre: 'Válvula Flotadora',  imagen: '/servicios/hidraulica/VÁLVULA FLOTADORA.png',  categoria: 'VALVULA'   },
       { id: 7, nombre: 'Cheque Ranurado',    imagen: '/servicios/hidraulica/CHEQUE RANURADO.png',    categoria: 'VALVULA'   },
       { id: 8, nombre: 'Bola en Cobre',      imagen: '/servicios/hidraulica/BOLA EN COBRE.png',      categoria: 'ACCESORIO' },
-      { id: 9, nombre: 'Varilla Bro-Inox',   imagen: '/servicios/hidraulica/VARILLA BRO-INOX.png',   categoria: 'ACCESORIO' },
+      // Antes "Varilla Bro-Inox" (renombrado; la migración V15 actualiza los productos ya creados)
+      { id: 9, nombre: 'Varilla A. Inox',    imagen: '/servicios/hidraulica/VARILLA BRO-INOX.png',   categoria: 'ACCESORIO' },
+      // Nuevos. Imagen pendiente: mientras el archivo no exista se muestra el logo; al subirlo
+      // con ESTE nombre a public/servicios/... aparece solo, sin cambiar código.
+      { id: 10, nombre: 'Bola Plástica',     imagen: '/servicios/hidraulica/BOLA PLASTICA.png',      categoria: 'ACCESORIO' },
+      { id: 11, nombre: 'Varilla en Bronce', imagen: '/servicios/hidraulica/VARILLA EN BRONCE.png',  categoria: 'ACCESORIO' },
     ],
   },
   { id: 2, nombre: 'SUMINISTRO REDES CONTRA INCENDIOS', imagen: '/servicios/incendio/incedios.jpeg', slug: 'incendios',
@@ -18,13 +23,21 @@ export const catalogProducts = [
     subcategorias: [
       { id: 1, nombre: 'Cheque Cortina Ranurado',    imagen: '/servicios/incendio/CHEQUE CORTINA RANURADO.png',    categoria: 'VALVULA'   },
       { id: 2, nombre: 'Codo Ranurado',              imagen: '/servicios/incendio/CODO RANURADO.png',              categoria: 'ACOPLE'    },
-      { id: 3, nombre: 'Flanche Ranurado',           imagen: '/servicios/incendio/FLANCHE RANURADO.png',           categoria: 'ACOPLE'    },
-      { id: 4, nombre: 'Gabinete',                   imagen: '/servicios/incendio/GABINETE.png',                   categoria: 'ACCESORIO' },
+      // Antes "Flanche Ranurado" (renombrado, ver V15)
+      { id: 3, nombre: 'Brida Plana - Flanche Ranurado', imagen: '/servicios/incendio/FLANCHE RANURADO.png',       categoria: 'ACOPLE'    },
+      // id 4 "Gabinete": quitado del catálogo (ya no se puede agregar; lo existente no se toca)
       { id: 5, nombre: 'Tee Ranurada',               imagen: '/servicios/incendio/TEE RANURADA.png',               categoria: 'ACOPLE'    },
       { id: 6, nombre: 'Tubería A/C Ranurada',       imagen: '/servicios/incendio/TUBERIA A⁄C RANURADA.png',       categoria: 'TUBERIA'   },
-      { id: 7, nombre: 'Unión Ranurada',             imagen: '/servicios/incendio/UNION RANURADA.png',             categoria: 'ACOPLE'    },
+      // Antes "Unión Ranurada" (renombrado, ver V15)
+      { id: 7, nombre: 'Coupling - Unión Ranurada',  imagen: '/servicios/incendio/UNION RANURADA.png',             categoria: 'ACOPLE'    },
       { id: 8, nombre: 'Válvula Angular',            imagen: '/servicios/incendio/VÁLVULA ANGULAR.png',            categoria: 'VALVULA'   },
       { id: 9, nombre: 'Válvula Compuerta Ranurada', imagen: '/servicios/incendio/VÁLVULA COMPUERTA RANURADA.png', categoria: 'VALVULA'   },
+      // Nuevos (imagen pendiente, ver nota en hidráulicas)
+      { id: 10, nombre: 'Semicodo Ranurado',                      imagen: '/servicios/incendio/SEMICODO RANURADO.png',              categoria: 'ACOPLE'    },
+      { id: 11, nombre: 'Tapón Ranurado',                         imagen: '/servicios/incendio/TAPON RANURADO.png',                 categoria: 'ACOPLE'    },
+      { id: 12, nombre: 'Brida Cuellos - Flanche Adaptador',      imagen: '/servicios/incendio/BRIDA CUELLOS - FLANCHE ADAPTADOR.png', categoria: 'ACOPLE' },
+      { id: 13, nombre: 'Válvula Mariposa Ranurada con Actuador', imagen: '/servicios/incendio/VALVULA MARIPOSA RANURADA.png',      categoria: 'VALVULA'   },
+      { id: 14, nombre: 'Válvula Compuerta Flanchada',            imagen: '/servicios/incendio/VALVULA COMPUERTA FLANCHADA.png',    categoria: 'VALVULA'   },
     ],
   },
   { id: 3, nombre: 'SUMINISTRO ACUEDUCTO', imagen: '/servicios/acueducto/VAL - REGULADORA DE PRESION.png', slug: 'acueducto',

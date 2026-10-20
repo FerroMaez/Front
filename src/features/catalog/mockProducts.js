@@ -1,5 +1,7 @@
 
 export const CATEGORIAS = ['TUBERIA', 'VALVULA', 'ACOPLE', 'ACCESORIO', 'OTRO']
+// Texto para mostrar (los valores de arriba son los del backend).
+export const CATEGORIA_LABEL = { TUBERIA: 'Tubería', VALVULA: 'Válvula', ACOPLE: 'Acople', ACCESORIO: 'Accesorio', OTRO: 'Otro' }
 
 export const TIPOS_PRODUCTO = ['VÁLVULA', 'TUBERÍA', 'ACOPLE', 'ACCESORIO', 'FITTING', 'OTRO']
 

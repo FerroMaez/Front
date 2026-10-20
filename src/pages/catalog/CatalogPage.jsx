@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { IoSearchOutline, IoFilterOutline } from 'react-icons/io5'
 import { productService } from '../../services/api/productService'
-import { CATEGORIAS, catalogImages, formatCOP } from '../../features/catalog/mockProducts'
+import { CATEGORIAS, CATEGORIA_LABEL, catalogImages, formatCOP } from '../../features/catalog/mockProducts'
 import StockBadge from '../../components/shared/StockBadge'
 
 export default function CatalogPage() {
@@ -78,7 +78,7 @@ export default function CatalogPage() {
             className="pl-9 pr-8 py-2.5 rounded-xl text-sm outline-none appearance-none cursor-pointer"
             style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
             <option value="">Todas las categorías</option>
-            {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+            {CATEGORIAS.map(c => <option key={c} value={c}>{CATEGORIA_LABEL[c] || c}</option>)}
           </select>
         </div>
       </div>

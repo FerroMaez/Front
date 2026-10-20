@@ -14,6 +14,10 @@ const ordenListeners  = new Set()
 const ventaOfflineListeners = new Set()
 const statusListeners = new Set()
 
+function rolActual() {
+  try { return JSON.parse(localStorage.getItem('manhid-user') || 'null')?.rol } catch { return null }
+}
+
 function notifyAll(set, data) {
   set.forEach(fn => { try { fn(data) } catch (_) {} })
 }
@@ -49,9 +53,13 @@ export const websocketService = {
       onConnect: () => {
         lastStatus = 'connected'
         notifyAll(statusListeners, 'connected')
-        stompClient.subscribe('/topic/alertas', (msg) => {
-          try { notifyAll(alertaListeners, JSON.parse(msg.body)) } catch (_) {}
-        })
+        // Alertas de stock: solo JEFE. Si un EMPLEADO se suscribiera, el backend rechaza la
+        // suscripción con un ERROR de STOMP que cierra TODA la conexión (perdería las órdenes).
+        if (rolActual() === 'JEFE') {
+          stompClient.subscribe('/topic/alertas', (msg) => {
+            try { notifyAll(alertaListeners, JSON.parse(msg.body)) } catch (_) {}
+          })
+        }
         stompClient.subscribe('/topic/ventas-offline', (msg) => {
           try { notifyAll(ventaOfflineListeners, JSON.parse(msg.body)) } catch (_) {}
         })

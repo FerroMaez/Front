@@ -40,6 +40,7 @@ export default function LoginPage() {
       login(usuario, accessToken)
       let dest = '/perfil'
       if (usuario.rol === 'JEFE') dest = '/backoffice'
+      else if (usuario.rol === 'EMPLEADO') dest = '/backoffice/ordenes'
       else if (returnTo && returnTo !== '/') dest = returnTo
       navigate(dest, { replace: true })
     } catch (err) {

@@ -33,11 +33,11 @@ function subcatsForLinea(lineaValue) {
   return catalogProducts.find(cp => cp.slug === linea.slug)?.subcategorias ?? []
 }
 
-function buildErrors(form, isArreglos) {
+function buildErrors(form, esHistorial) {
   const e = {}
   if (!form.linea_servicio) e.linea_servicio = 'Selecciona la línea de servicio'
   if (!form.nombre) e.nombre = 'Selecciona el producto del catálogo'
-  if (isArreglos) {
+  if (esHistorial) {
     if (!Number.isSafeInteger(Number(form.cantidad)) || Number(form.cantidad) <= 0) e.cantidad = 'Ingresa una cantidad entera mayor que cero'
   } else {
     if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = 'Precio inválido'
@@ -46,8 +46,32 @@ function buildErrors(form, isArreglos) {
   }
   return e
 }
+// Quita tildes y pasa a minúsculas: "valvula" encuentra "Válvula de Bola".
+const normalizar = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+// Todos los productos del catálogo de todas las líneas, para el buscador.
+const TODOS_LOS_SUBCATS = LINEAS_SERVICIO.flatMap(l => subcatsForLinea(l.value).map(sub => ({ ...sub, linea: l })))
+
+function BuscadorProductos({ value, onChange, placeholder }) {
+  return (
+    <div className="relative mb-3">
+      <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2" size={12} style={{ color: 'var(--tx-3)' }} />
+      <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        aria-label={placeholder}
+        className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm outline-none"
+        style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+    </div>
+  )
+}
+
+// Arreglos y Bodega comparten el mismo funcionamiento ("hojas de historial"): se registran
+// cantidades sin precio y se traspasan a la siguiente hoja: BODEGA → ARREGLOS → INVENTARIO.
+// (El traspaso lo hacen transferirAArreglos y transferirAlInventario.)
+
 export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 'Inventario' }) {
-  const isArreglos = tipoInventario === 'ARREGLO'
+  const esHistorial = tipoInventario !== 'INVENTARIO'
+  const esBodega    = tipoInventario === 'BODEGA'
+  const [busqueda,    setBusqueda]    = useState('')   // buscador del modal agregar/editar
   const [products,    setProducts]    = useState([])
   const [search,      setSearch]      = useState('')
   const [lineaFiltro, setLineaFiltro] = useState('')
@@ -65,12 +89,12 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     try {
       const { data } = await productService.getAll({ search, tipoInventario })
       const filtered = data.filter(p => (!lineaFiltro || p.linea_servicio === lineaFiltro)
-        && (!isArreglos || Number(p.stock_disponible) > 0))
+        && (!esHistorial || Number(p.stock_disponible) > 0))
       setProducts(filtered)
     } catch {
       // mantiene la lista anterior si falla la red
     }
-  }, [search, lineaFiltro, tipoInventario, isArreglos])
+  }, [search, lineaFiltro, tipoInventario, esHistorial])
 
   useEffect(() => { load() }, [load])
 
@@ -78,6 +102,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
   const openCreate = () => {
     setForm({ ...emptyForm, tipo_inventario: tipoInventario }); setErrors({}); setErrorStock(''); setCantidadAgregar('')
+    setBusqueda('')
     setModal('create')
   }
 
@@ -87,6 +112,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     setErrors({})
     setErrorStock('')
     setCantidadAgregar('')
+    setBusqueda('')
     setModal('edit')
     try {
       const { data } = await productService.getAll({ tipoInventario })
@@ -103,6 +129,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       return
     }
     setSelected(p)
+    setBusqueda('')
     setForm({
       linea_servicio: p.linea_servicio || '', nombre: p.nombre || '', imagen_url: p.imagen_url || '',
       categoria: p.categoria || 'OTRO', descripcion: p.descripcion || '', pulgadas: p.pulgadas || '',
@@ -115,9 +142,15 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   }
 
   // Al seleccionar un producto del catálogo → auto-asigna nombre + imagen + categoria
+  // Desde el buscador puede elegirse un producto de otra línea: se ajusta también la línea.
   const handleSelectSubcat = (subcat) => {
-    setForm(f => ({ ...f, nombre: subcat.nombre, imagen_url: subcat.imagen, categoria: subcat.categoria, pulgadas: '' }))
-    setErrors(e => ({ ...e, nombre: '' }))
+    setForm(f => ({
+      ...f,
+      linea_servicio: subcat.linea?.value || f.linea_servicio,
+      nombre: subcat.nombre, imagen_url: subcat.imagen, categoria: subcat.categoria, pulgadas: '',
+    }))
+    setErrors(e => ({ ...e, nombre: '', linea_servicio: '' }))
+    setBusqueda('')
   }
 
   const handleStockChange = (val) => {
@@ -125,7 +158,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   }
 
   const validate = () => {
-    const e = buildErrors(form, isArreglos)
+    const e = buildErrors(form, esHistorial)
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -135,11 +168,11 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     setLoading(true)
     try {
       const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)
-      if (isArreglos) {
+      if (esHistorial) {
         const cantidad = Number(form.cantidad)
         const payloadArreglo = {
           ...form,
-          tipo_inventario: 'ARREGLO',
+          tipo_inventario: tipoInventario,
           condicion: 'REMANUFACTURADO',
           precio_unitario: 0,
           stock_disponible: cantidad,
@@ -147,7 +180,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           estado: 'ACTIVO',
           linea_label: linea?.label || '',
         }
-        const { data } = await productService.getAll({ tipoInventario: 'ARREGLO' })
+        const { data } = await productService.getAll({ tipoInventario })
         const existente = data.find(p => p.estado === 'ACTIVO'
           && p.nombre === payloadArreglo.nombre
           && p.linea_servicio === payloadArreglo.linea_servicio
@@ -155,10 +188,10 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           && p.condicion === 'REMANUFACTURADO')
         if (existente) {
           await productService.addStock(existente.id, cantidad)
-          showToast('Arreglo actualizado: se sumaron ' + cantidad + ' unidades.')
+          showToast(`${titulo}: se sumaron ${cantidad} unidades a ${existente.nombre}.`)
         } else {
           await productService.create(payloadArreglo)
-          showToast('Producto agregado al historial de arreglos.')
+          showToast(`Producto agregado a ${titulo}.`)
         }
         setModal(null)
         await load()
@@ -193,6 +226,23 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     }
   }
 
+  // Bodega → Arreglos: el backend busca (o crea) el mismo producto en arreglos y le suma todo.
+  const transferirAArreglos = async (item) => {
+    if (!item.stock_disponible || item.stock_disponible <= 0) return
+    setLoading(true)
+    try {
+      const cantidad = item.stock_disponible
+      await productService.transferToArreglos(item.id)
+      showToast(`Se pasaron ${cantidad} unidades de ${item.nombre} a Arreglos.`)
+      setProducts(current => current.filter(p => p.id !== item.id))
+      await load()
+    } catch (err) {
+      showToast(err.response?.data?.error || 'No se pudo pasar el producto a Arreglos.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const transferirAlInventario = async (arreglo) => {
     if (!arreglo.stock_disponible || arreglo.stock_disponible <= 0) return
     setLoading(true)
@@ -213,13 +263,21 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       setProducts(current => current.filter(p => p.id !== arreglo.id))
       await load()
     } catch (err) {
-      showToast(err.response?.data?.message || 'No se pudo sumar el arreglo al inventario.')
+      showToast(err.response?.data?.error || 'No se pudo sumar el arreglo al inventario.')
     } finally {
       setLoading(false)
     }
   }
 
   const currentSubcats = subcatsForLinea(form.linea_servicio)
+  // Con texto en el buscador se busca en todas las líneas; sin texto, solo la línea elegida.
+  const textoBusqueda = normalizar(busqueda)
+  const subcatsVisibles = textoBusqueda
+    ? TODOS_LOS_SUBCATS.filter(s => normalizar(s.nombre).includes(textoBusqueda))
+    : currentSubcats
+  const opcionesEdicion = textoBusqueda
+    ? editOptions.filter(p => normalizar(p.nombre).includes(textoBusqueda))
+    : editOptions.filter(p => p.linea_servicio === form.linea_servicio)
   const medidasProducto = getMedidasProducto(form.nombre, form.linea_servicio)
   const opcionesMedida = form.pulgadas && !medidasProducto.includes(form.pulgadas)
     ? [form.pulgadas, ...medidasProducto]
@@ -228,7 +286,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   // Etiqueta de guardado (sin ternarios anidados)
   let saveLabel = 'Guardar cambios'
   if (loading)              saveLabel = 'Guardando…'
-  else if (modal === 'create') saveLabel = isArreglos ? 'Agregar arreglo' : 'Crear producto'
+  else if (modal === 'create') saveLabel = esHistorial ? `Agregar a ${titulo}` : 'Crear producto'
 
   return (
     <div>
@@ -242,10 +300,10 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>{titulo}</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{products.length} {isArreglos ? 'productos en el historial' : 'productos registrados'}</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{products.length} {products.length === 1 ? 'producto' : 'productos'} {esHistorial ? 'en el historial' : (products.length === 1 ? 'registrado' : 'registrados')}</p>
         </div>
         <div className="flex items-center gap-2">
-          {!isArreglos && <button onClick={openEdit} disabled={loading} className="btn-outline text-sm gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          {!esHistorial && <button onClick={openEdit} disabled={loading} className="btn-outline text-sm gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
             <FaEdit size={12} /> Editar producto
           </button>}
           <button onClick={openCreate} className="btn-primary text-sm gap-2">
@@ -276,7 +334,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           <table className="text-sm data-table">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--bd-1)' }}>
-                {(isArreglos ? ['Producto', 'Línea de servicio', 'Medida', 'Condición', 'Cantidad', 'Acción'] : ['Producto', 'Linea de servicio', 'Medida', 'Condicion', 'Precio', 'Cantidad']).map(h => (
+                {(esHistorial ? ['Producto', 'Línea de servicio', 'Medida', 'Condición', 'Cantidad', 'Acción'] : ['Producto', 'Línea de servicio', 'Medida', 'Condición', 'Precio', 'Cantidad']).map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tx-3)' }}>{h}</th>
                 ))}
               </tr>
@@ -316,14 +374,14 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                       )}
                     </td>
                     <td className="px-4 py-3">{p.pulgadas || '—'}</td>
-                    <td className="px-4 py-3">{isArreglos ? 'Manufacturado' : (p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo')}</td>
-                    {isArreglos ? (
+                    <td className="px-4 py-3">{esHistorial ? 'Manufacturado' : (p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo')}</td>
+                    {esHistorial ? (
                       <>
                         <td className="px-4 py-3 font-semibold">{p.stock_disponible}</td>
                         <td className="px-4 py-3">
-                          <button type="button" onClick={() => transferirAlInventario(p)} disabled={loading || p.stock_disponible <= 0}
+                          <button type="button" onClick={() => (esBodega ? transferirAArreglos(p) : transferirAlInventario(p))} disabled={loading || p.stock_disponible <= 0}
                             className="btn-primary text-xs px-3 py-2 disabled:opacity-50">
-                            Sumar al inventario
+                            {esBodega ? 'Pasar a arreglos' : 'Sumar al inventario'}
                           </button>
                         </td>
                       </>
@@ -356,7 +414,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       ═══════════════════════════════════════════ */}
       <Modal isOpen={modal === 'create' || modal === 'edit'}
         onClose={() => setModal(null)}
-        title={isArreglos ? 'Agregar producto a Arreglos' : (modal === 'create' ? 'Agregar Producto al Inventario' : selected ? 'Editar: ' + selected.nombre : 'Editar producto')}
+        title={esHistorial ? `Agregar producto a ${titulo}` : (modal === 'create' ? 'Agregar producto al Inventario' : selected ? 'Editar: ' + selected.nombre : 'Editar producto')}
         size="lg">
         <div className="space-y-6">
 
@@ -410,19 +468,28 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 {errors.nombre && <span className="text-red-500 font-normal normal-case">{errors.nombre}</span>}
               </p>
 
-              {!form.linea_servicio ? (
+              {/* Si no lo encuentras en la lista, escribe el nombre: busca en TODAS las líneas */}
+              <BuscadorProductos value={busqueda} onChange={setBusqueda}
+                placeholder="¿No lo encuentras? Escribe el nombre del producto…" />
+
+              {!form.linea_servicio && !busqueda.trim() ? (
                 <div className="flex items-center gap-2 p-4 rounded-xl text-sm" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-3)' }}>
                   <FaChevronRight size={12} className="text-brand-500" />
-                  Primero selecciona una línea de servicio para ver los productos disponibles
+                  Selecciona una línea de servicio o escribe el nombre en el buscador
                 </div>
               ) : (
                 <>
-                  {/* Grid de productos de la línea */}
+                  {busqueda.trim() && subcatsVisibles.length === 0 && (
+                    <p className="p-4 rounded-xl text-sm text-center" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-3)' }}>
+                      No hay productos que coincidan con &quot;{busqueda}&quot;.
+                    </p>
+                  )}
+                  {/* Grid de productos de la línea (o resultados del buscador) */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
-                    {currentSubcats.map(sub => {
-                      const isSelected = form.nombre === sub.nombre
+                    {subcatsVisibles.map(sub => {
+                      const isSelected = form.nombre === sub.nombre && (!sub.linea || sub.linea.value === form.linea_servicio)
                       return (
-                        <button key={sub.id} type="button"
+                        <button key={`${sub.linea?.value || form.linea_servicio}-${sub.id}`} type="button"
                           onClick={() => handleSelectSubcat(sub)}
                           className="flex items-center gap-2 p-2.5 rounded-xl text-left text-xs font-medium transition-all border"
                           style={{
@@ -437,7 +504,10 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                               className="w-full h-full object-contain p-0.5"
                               onError={e => { e.target.src = '/newLogo3.jpeg' }} />
                           </div>
-                          <span className="leading-snug">{sub.nombre}</span>
+                          <span className="leading-snug">
+                            {sub.nombre}
+                            {sub.linea && <span className="block mt-0.5 text-[10px]" style={{ color: 'var(--tx-3)' }}>{sub.linea.label}</span>}
+                          </span>
                           {isSelected && <FaCheckCircle size={11} className="ml-auto flex-shrink-0 text-brand-500" />}
                         </button>
                       )
@@ -469,12 +539,14 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           {modal === 'edit' && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>Producto</p>
-              {!form.linea_servicio ? (
-                <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Selecciona primero una linea de servicio.</p>
+              <BuscadorProductos value={busqueda} onChange={setBusqueda}
+                placeholder="¿No lo encuentras? Escribe el nombre del producto…" />
+              {!form.linea_servicio && !textoBusqueda ? (
+                <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Selecciona una línea de servicio o escribe el nombre en el buscador.</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
-                    {editOptions.filter(p => p.linea_servicio === form.linea_servicio).map(p => {
+                    {opcionesEdicion.map(p => {
                       const isSelected = selected?.id === p.id
                       return (
                         <button key={p.id} type="button" onClick={() => selectEditProduct(p)}
@@ -492,9 +564,9 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                           </div>
                           <span className="leading-snug">
                             {p.nombre}
-                            {(p.pulgadas || p.condicion === 'REMANUFACTURADO') && (
+                            {(textoBusqueda || p.pulgadas || p.condicion === 'REMANUFACTURADO') && (
                               <span className="block mt-0.5 text-[10px]" style={{ color: 'var(--tx-3)' }}>
-                                {[p.pulgadas, p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo'].filter(Boolean).join(' · ')}
+                                {[textoBusqueda && LINEAS_SERVICIO.find(l => l.value === p.linea_servicio)?.label, p.pulgadas, p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo'].filter(Boolean).join(' · ')}
                               </span>
                             )}
                           </span>
@@ -503,8 +575,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                       )
                     })}
                   </div>
-                  {editOptions.filter(p => p.linea_servicio === form.linea_servicio).length === 0 && (
-                    <p className="mt-2 text-xs" style={{ color: 'var(--tx-3)' }}>No hay productos registrados en esta linea.</p>
+                  {opcionesEdicion.length === 0 && (
+                    <p className="mt-2 text-xs" style={{ color: 'var(--tx-3)' }}>{textoBusqueda ? `No hay productos que coincidan con "${busqueda}".` : 'No hay productos registrados en esta línea.'}</p>
                   )}
                 </>
               )}
@@ -518,7 +590,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 <span className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center font-bold flex-shrink-0">
                   {modal === 'create' ? '3' : '2'}
                 </span>
-                {isArreglos ? 'Datos del arreglo' : 'Datos del inventario'}
+                {esHistorial ? 'Datos del producto' : 'Datos del inventario'}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -531,7 +603,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     {opcionesMedida.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-                {isArreglos ? (
+                {esHistorial ? (
                   <div className="flex flex-col justify-center">
                     <span className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Condición</span>
                     <span className="text-sm" style={{ color: 'var(--tx-1)' }}>Manufacturado</span>
@@ -547,7 +619,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   </select>
                 </div>
                 )}
-                {isArreglos && (
+                {esHistorial && (
                   <div>
                     <label htmlFor="inv-cantidad-arreglo" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Cantidad <span className="text-red-500">*</span></label>
                     <input id="inv-cantidad-arreglo" type="number" min="1" step="1" inputMode="numeric" value={form.cantidad}
@@ -558,7 +630,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   </div>
                 )}
                 {/* Precio */}
-{!isArreglos && (
+{!esHistorial && (
                 <div>
                   <label htmlFor="inv-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     Precio unitario (COP) <span className="text-red-500">*</span>
@@ -573,7 +645,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 )}
 
                 {/* Stock disponible */}
-{!isArreglos && (
+{!esHistorial && (
                 <div>
                   <label htmlFor="inv-stock" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     {modal === 'edit' ? 'Stock disponible actual' : 'Stock disponible'} <span className="text-red-500">*</span>
@@ -599,7 +671,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 )}
 
                 {/* Stock mínimo */}
-{!isArreglos && (
+{!esHistorial && (
                 <div>
                   <label htmlFor="inv-minimo" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     Stock mínimo (alerta) <span className="text-red-500">*</span>
@@ -627,15 +699,15 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none transition-colors"
                     style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
                 </div>
-{!isArreglos && (
+{!esHistorial && (
                 <div>
                   <label htmlFor="inv-estado" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Estado</label>
                   <select id="inv-estado" value={form.estado}
                     onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none appearance-none"
                     style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
-                    <option value="ACTIVO">ACTIVO</option>
-                    <option value="INACTIVO">INACTIVO</option>
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
                   </select>
                 </div>
                 )}

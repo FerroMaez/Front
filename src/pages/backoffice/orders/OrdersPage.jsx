@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   FaPhone, FaEnvelope, FaTimesCircle, FaSpinner, FaChevronDown,
-  FaReceipt, FaDownload, FaPlus, FaExternalLinkAlt,
+  FaReceipt, FaDownload, FaPlus, FaExternalLinkAlt, FaSearch,
 } from 'react-icons/fa'
 import { orderService } from '../../../services/api/orderService'
 import { productService } from '../../../services/api/productService'
@@ -44,6 +44,7 @@ export default function OrdersPage() {
   const [cantidades,      setCantidades]      = useState({})
   const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', email: '' })
   const [vfDescripcion,   setVfDescripcion]   = useState('')
+  const [vfBusqueda,      setVfBusqueda]      = useState('')
   const [vfErrors,        setVfErrors]        = useState({})
   const [loadingVF,       setLoadingVF]       = useState(false)
   const [exportLoading,   setExportLoading]   = useState(false)
@@ -67,6 +68,7 @@ export default function OrdersPage() {
     setCantidades({})
     setVfCliente({ nombre: '', telefono: '', email: '' })
     setVfDescripcion('')
+    setVfBusqueda('')
     setVfErrors({})
     // Se guarda una copia del catálogo para poder vender aunque se caiga el internet.
     productService.getAll()
@@ -99,6 +101,13 @@ export default function OrdersPage() {
   // Lo que realmente se puede vender: físico − reservado para cotizaciones − ventas offline pendientes
   const stockVendible = (p) => Math.max(0,
     (p.stock_disponible ?? 0) - (p.stock_reservado ?? 0) - (reservadoOffline[p.id] || 0))
+
+  // Buscador de la venta física: por nombre o medida, sin importar tildes ni mayúsculas.
+  const normalizar = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+  const textoVf = normalizar(vfBusqueda)
+  const productosVisibles = textoVf
+    ? productos.filter(p => normalizar(`${p.nombre} ${p.pulgadas || ''}`).includes(textoVf))
+    : productos
 
   const vfItems = Object.entries(cantidades).filter(([, q]) => q > 0).map(([id, cantidad]) => ({ productoId: +id, cantidad }))
   const vfTotal = Object.entries(cantidades).reduce((sum, [id, qty]) => {
@@ -434,11 +443,25 @@ export default function OrdersPage() {
           Selecciona los productos y las cantidades que compró el cliente.
         </p>
 
-        {productos.length === 0 ? (
+        <div className="relative mb-3">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2" size={12} style={{ color: 'var(--tx-3)' }} />
+          <input type="search" value={vfBusqueda} onChange={e => setVfBusqueda(e.target.value)}
+            placeholder="¿No lo encuentras? Escribe el nombre o la medida…" aria-label="Buscar producto"
+            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm outline-none"
+            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+        </div>
+
+        {productos.length === 0 && (
           <div className="text-center py-8" style={{ color: 'var(--tx-3)' }}>Cargando productos…</div>
-        ) : (
+        )}
+        {productos.length > 0 && productosVisibles.length === 0 && (
+          <div className="text-center py-8 text-sm" style={{ color: 'var(--tx-3)' }}>
+            No hay productos que coincidan con &quot;{vfBusqueda}&quot;.
+          </div>
+        )}
+        {productosVisibles.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1 mb-4">
-            {productos.map(p => {
+            {productosVisibles.map(p => {
               const stock = stockVendible(p)
               const bajo  = stock <= (p.stock_minimo ?? 0)
               return (
@@ -448,7 +471,10 @@ export default function OrdersPage() {
                   <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-1" onError={e => { e.target.src = '/newLogo3.jpeg' }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>{p.nombre}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>
+                    {p.nombre}
+                    {p.pulgadas && <span className="ml-1.5 text-xs font-medium" style={{ color: 'var(--tx-3)' }}>{p.pulgadas}</span>}
+                  </p>
                   <p className={`text-xs font-semibold mt-0.5 ${bajo ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
                     Stock: {stock} und.{bajo && stock > 0 ? ' · bajo' : ''}{stock === 0 ? ' · agotado' : ''}
                   </p>
