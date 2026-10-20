@@ -4,6 +4,7 @@ import { FaBoxes, FaClipboardList, FaCheckCircle, FaTimesCircle, FaExclamationTr
 import { dashboardService } from '../../../services/api/dashboardService'
 import { orderService } from '../../../services/api/orderService'
 import { formatCOP } from '../../../utils/formatters'
+import { CATEGORIA_LABEL } from '../../../features/catalog/mockProducts'
 import StockBadge from '../../../components/shared/StockBadge'
 
 const BRAND = '#8C903B'
@@ -183,7 +184,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--tx-1)' }}>{p.nombre}</p>
-                  <p className="text-xs" style={{ color: 'var(--tx-3)' }}>{p.categoria}</p>
+                  <p className="text-xs" style={{ color: 'var(--tx-3)' }}>{CATEGORIA_LABEL[p.categoria] || p.categoria}</p>
                 </div>
                 <StockBadge disponible={p.stock_disponible} minimo={p.stock_minimo} showCount />
               </div>

@@ -30,11 +30,22 @@ function RequireAuth({ children }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
-/** @param {{ children: import('react').ReactNode }} props */
-function RequireJefe({ children }) {
+/** Backoffice: JEFE (todo) y EMPLEADO (solo Órdenes). @param {{ children: import('react').ReactNode }} props */
+function RequireBackoffice({ children }) {
   const { user, isAuthenticated } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (user?.rol !== 'JEFE') return <Navigate to="/" replace />
+  if (!['JEFE', 'EMPLEADO'].includes(user?.rol)) return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
+/**
+ * Páginas solo del JEFE. Un EMPLEADO que entre por URL se manda a Órdenes (su única página).
+ * El backend también lo bloquea: esto es solo para no mostrarle pantallas que darían 403.
+ * @param {{ children: import('react').ReactNode }} props
+ */
+function RequireJefe({ children }) {
+  const { user } = useAuthStore()
+  if (user?.rol !== 'JEFE') return <Navigate to="/backoffice/ordenes" replace />
   return <>{children}</>
 }
 
@@ -59,12 +70,14 @@ export default function AppRouter() {
         </Route>
 
         {/* ── Backoffice ───────────────────────────────── */}
-        <Route path="/backoffice" element={<RequireJefe><BackofficeLayout /></RequireJefe>}>
-          <Route index                element={<DashboardPage />} />
-          <Route path="inventario"    element={<InventoryPage />} />
-          <Route path="arreglos"      element={<InventoryPage tipoInventario="ARREGLO" titulo="Arreglos" />} />
+        <Route path="/backoffice" element={<RequireBackoffice><BackofficeLayout /></RequireBackoffice>}>
+          <Route index                element={<RequireJefe><DashboardPage /></RequireJefe>} />
+          <Route path="inventario"    element={<RequireJefe><InventoryPage key="inventario" /></RequireJefe>} />
+          <Route path="arreglos"      element={<RequireJefe><InventoryPage key="arreglos" tipoInventario="ARREGLO" titulo="Arreglos" /></RequireJefe>} />
+          {/* key distinto: al cambiar de hoja React monta la página de cero (sin estado de la anterior) */}
+          <Route path="bodega"        element={<RequireJefe><InventoryPage key="bodega" tipoInventario="BODEGA" titulo="Bodega" /></RequireJefe>} />
           <Route path="ordenes"       element={<OrdersPage />} />
-          <Route path="notificaciones" element={<NotificationsPage />} />
+          <Route path="notificaciones" element={<RequireJefe><NotificationsPage /></RequireJefe>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

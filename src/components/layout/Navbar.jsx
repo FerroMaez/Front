@@ -23,7 +23,7 @@ export default function Navbar() {
   const profileRef  = useRef(null)
   const navigate = useNavigate()
   const { theme, toggle } = useThemeStore()
-  const { user, isAuthenticated, logout, isJefe } = useAuthStore()
+  const { user, isAuthenticated, logout, isJefe, isEmpleado } = useAuthStore()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
@@ -144,14 +144,14 @@ export default function Navbar() {
                       <p className="text-xs font-bold" style={{ color: 'var(--tx-1)' }}>{user?.nombre}</p>
                       <p className="text-[10px] text-brand-500 font-semibold uppercase">{user?.rol}</p>
                     </div>
-                    {isJefe() && (
-                      <Link to="/backoffice" onClick={() => setProfileOpen(false)}
+                    {isEmpleado() && (
+                      <Link to={isJefe() ? "/backoffice" : "/backoffice/ordenes"} onClick={() => setProfileOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm hover:bg-brand-500/10 transition-colors"
                         style={{ color: 'var(--tx-2)' }}>
                         <FaTachometerAlt size={14} className="text-brand-500" /> Backoffice
                       </Link>
                     )}
-                    {!isJefe() && (
+                    {!isEmpleado() && (
                       <>
                         <Link to="/perfil" onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm hover:bg-brand-500/10 transition-colors"
@@ -235,15 +235,15 @@ export default function Navbar() {
                     </div>
                   </div>
 
-                  {!isJefe() && (
+                  {!isEmpleado() && (
                     <Link to="/perfil" onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm hover:bg-brand-500/10 transition-colors font-medium"
                       style={{ color: 'var(--tx-2)' }}>
                       <FaUser size={13} className="text-brand-500"/> Mi Perfil
                     </Link>
                   )}
-                  {isJefe() && (
-                    <Link to="/backoffice" onClick={() => setMobileOpen(false)}
+                  {isEmpleado() && (
+                    <Link to={isJefe() ? "/backoffice" : "/backoffice/ordenes"} onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm hover:bg-brand-500/10 font-medium"
                       style={{ color: 'var(--tx-2)' }}>
                       <FaTachometerAlt size={13} className="text-brand-500"/> Backoffice

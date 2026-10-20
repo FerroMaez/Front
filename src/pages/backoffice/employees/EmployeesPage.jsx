@@ -188,8 +188,8 @@ export default function EmployeesPage() {
             <select id="emp-estado-edit" value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
               className="w-full px-3 py-2 rounded-xl text-sm outline-none appearance-none"
               style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
-              <option value="ACTIVO">ACTIVO</option>
-              <option value="INACTIVO">INACTIVO</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi } from 'react-icons/fa'
+import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaWarehouse } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -25,6 +25,9 @@ export default function BackofficeLayout() {
   const rechazadas = ventasOffline.filter(v => v.estado === 'RECHAZADA').length
   const pendientes = ventasOffline.length - rechazadas
 
+  // El EMPLEADO solo ve Órdenes: sin dashboard, inventario ni alertas de stock.
+  const esJefe = user?.rol === 'JEFE'
+
   const handleLogout = () => { logout(); navigate('/') }
 
   // WebSocket GLOBAL: se conecta al entrar al backoffice y escucha alertas en
@@ -32,8 +35,8 @@ export default function BackofficeLayout() {
   // visible al instante y alimenta el store (badge + lista). Antes la conexión
   // vivía dentro de NotificationsPage y se cortaba al salir de esa pantalla.
   useEffect(() => {
-    // Semilla: alertas de stock crítico actuales (una vez por carga de la app)
-    if (!window.__manhidSeeded) {
+    // Semilla: alertas de stock crítico actuales (una vez por carga de la app). Solo JEFE.
+    if (esJefe && !window.__manhidSeeded) {
       window.__manhidSeeded = true
       dashboardService.getStats().then(stats => {
         (stats?.productosStockCritico || []).forEach(p => addNotification({
@@ -88,12 +91,13 @@ export default function BackofficeLayout() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const links = [
-    { to: '/backoffice',               label: 'Dashboard',  icon: <FaTachometerAlt size={15}/>, exact: true },
-    { to: '/backoffice/inventario',    label: 'Inventario', icon: <FaBoxes size={15}/> },
-    { to: '/backoffice/arreglos',      label: 'Arreglos',   icon: <FaTools size={15}/> },
+    { to: '/backoffice',               label: 'Dashboard',  icon: <FaTachometerAlt size={15}/>, exact: true, soloJefe: true },
+    { to: '/backoffice/inventario',    label: 'Inventario', icon: <FaBoxes size={15}/>, soloJefe: true },
+    { to: '/backoffice/arreglos',      label: 'Arreglos',   icon: <FaTools size={15}/>, soloJefe: true },
+    { to: '/backoffice/bodega',        label: 'Bodega',     icon: <FaWarehouse size={15}/>, soloJefe: true },
     { to: '/backoffice/ordenes',       label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
-    { to: '/backoffice/notificaciones', label: 'Alertas',   icon: <FaBell size={15}/>, badge: unreadCount },
-  ]
+    { to: '/backoffice/notificaciones', label: 'Alertas',   icon: <FaBell size={15}/>, badge: unreadCount, soloJefe: true },
+  ].filter(l => esJefe || !l.soloJefe)
 
   const SideNav = ({ onClick }) => (
     <nav className="flex flex-col gap-1 p-3">
