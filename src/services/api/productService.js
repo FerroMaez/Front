@@ -54,6 +54,11 @@ export const productService = {
     return api.post(`/productos/${id}/stock`, { cantidad }).then(r => mapProduct(r.data))
   },
 
+  // Bodega → Arreglos: pasa todas las unidades; si el producto no existe en arreglos se crea.
+  transferToArreglos: async (id) => {
+    return api.post(`/productos/${id}/transferir-arreglos`).then(r => mapProduct(r.data))
+  },
+
   transferArrangement: async (id, inventarioProductoId) => {
     return api.post(`/productos/${id}/transferir-inventario`, { inventarioProductoId }).then(r => mapProduct(r.data))
   },
