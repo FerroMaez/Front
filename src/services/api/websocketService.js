@@ -12,6 +12,7 @@ let lastStatus = 'connecting'
 const alertaListeners = new Set()
 const ordenListeners  = new Set()
 const ventaOfflineListeners = new Set()
+const asistenciaListeners = new Set()
 const statusListeners = new Set()
 
 function rolActual() {
@@ -36,6 +37,11 @@ export const websocketService = {
     ventaOfflineListeners.add(fn)
     return () => ventaOfflineListeners.delete(fn)
   },
+  /** Marcación de asistencia en la tablet (solo JEFE). */
+  onAsistencia(fn) {
+    asistenciaListeners.add(fn)
+    return () => asistenciaListeners.delete(fn)
+  },
   onStatus(fn) {
     statusListeners.add(fn)
     fn(lastStatus)   // entrega el estado actual de inmediato (aunque ya esté conectado)
@@ -58,6 +64,9 @@ export const websocketService = {
         if (rolActual() === 'JEFE') {
           stompClient.subscribe('/topic/alertas', (msg) => {
             try { notifyAll(alertaListeners, JSON.parse(msg.body)) } catch (_) {}
+          })
+          stompClient.subscribe('/topic/asistencia', (msg) => {
+            try { notifyAll(asistenciaListeners, JSON.parse(msg.body)) } catch (_) {}
           })
         }
         stompClient.subscribe('/topic/ventas-offline', (msg) => {

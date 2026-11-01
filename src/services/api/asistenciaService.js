@@ -1,0 +1,17 @@
+import api from './axiosInstance'
+
+export const asistenciaService = {
+  // ── Tablet (solo funciona dentro del túnel WireGuard) ──
+  estadoKiosco: () => api.get('/asistencia/kiosco/estado').then((r) => r.data),
+  marcar: (descriptor) => api.post('/asistencia/marcar', { descriptor }).then((r) => r.data),
+
+  // ── Jefes ──
+  trabajadores: () => api.get('/asistencia/trabajadores').then((r) => r.data),
+  crearTrabajador: (nombre, documento) =>
+    api.post('/asistencia/trabajadores', { nombre, documento }).then((r) => r.data),
+  cambiarActivo: (id, activo) => api.patch(`/asistencia/trabajadores/${id}/activo`, { activo }).then((r) => r.data),
+  registrarRostro: (id, descriptor, consentimiento) =>
+    api.put(`/asistencia/trabajadores/${id}/rostro`, { descriptor, consentimiento }).then((r) => r.data),
+  borrarRostro: (id) => api.delete(`/asistencia/trabajadores/${id}/rostro`).then((r) => r.data),
+  reporte: (desde, hasta) => api.get('/asistencia/reporte', { params: { desde, hasta } }).then((r) => r.data),
+}
