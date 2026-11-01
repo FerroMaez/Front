@@ -97,8 +97,9 @@ export default function BackofficeLayout() {
     { to: '/backoffice/bodega',        label: 'Bodega',     icon: <FaWarehouse size={15}/>, soloJefe: true },
     { to: '/backoffice/ordenes',       label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
     { to: '/backoffice/asistencia',    label: 'Asistencia', icon: <FaUserClock size={15}/>, soloJefe: true },
+    { to: '/backoffice/mi-asistencia', label: 'Mi asistencia', icon: <FaUserClock size={15}/>, soloEmpleado: true },
     { to: '/backoffice/notificaciones', label: 'Alertas',   icon: <FaBell size={15}/>, badge: unreadCount, soloJefe: true },
-  ].filter(l => esJefe || !l.soloJefe)
+  ].filter(l => (esJefe || !l.soloJefe) && (!esJefe || !l.soloEmpleado))
 
   const SideNav = ({ onClick }) => (
     <nav className="flex flex-col gap-1 p-3">

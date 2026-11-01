@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FaUserPlus, FaCamera, FaTrash, FaUserSlash, FaUserCheck, FaExternalLinkAlt } from 'react-icons/fa'
+import { FaUserPlus, FaCamera, FaTrash, FaUserSlash, FaUserCheck } from 'react-icons/fa'
 import { asistenciaService } from '../../../services/api/asistenciaService'
 import { websocketService } from '../../../services/api/websocketService'
 import RegistrarRostroModal from './RegistrarRostroModal'
@@ -62,14 +62,9 @@ export default function AsistenciaPage() {
     <div>
       {toast && <div className="fixed top-20 right-4 z-50 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-brand-600 shadow-lg">{toast}</div>}
 
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Asistencia</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>Entradas y salidas registradas con reconocimiento facial en la tablet</p>
-        </div>
-        <a href="/asistencia/kiosco" target="_blank" rel="noreferrer" className="btn-outline text-xs gap-2">
-          <FaExternalLinkAlt size={10} /> Abrir pantalla de la tablet
-        </a>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Asistencia</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>Entradas y salidas que los vendedores marcan con su rostro en la tablet de la entrada</p>
       </div>
 
       <div className="flex gap-2 mb-5">
@@ -159,13 +154,14 @@ export default function AsistenciaPage() {
                 <div>
                   <p className="font-semibold" style={{ color: 'var(--tx-1)' }}>{t.nombre} {t.documento && <span className="text-xs font-normal" style={{ color: 'var(--tx-3)' }}>· {t.documento}</span>}</p>
                   <div className="mt-1 space-x-1">
+                    {t.vendedor && <Etiqueta color="azul">Vendedor</Etiqueta>}
                     {!t.activo ? <Etiqueta color="rojo">Inactivo</Etiqueta>
                       : t.tieneRostro ? <Etiqueta color="verde">Rostro registrado</Etiqueta>
-                        : <Etiqueta color="ambar">Falta registrar el rostro</Etiqueta>}
+                        : <Etiqueta color="ambar">{t.vendedor ? 'Debe registrar su rostro desde su cuenta' : 'Falta registrar el rostro'}</Etiqueta>}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {t.activo && (
+                  {t.activo && !t.vendedor && (
                     <button onClick={() => setRegistrando(t)} className="btn-outline text-xs gap-1.5">
                       <FaCamera size={11} /> {t.tieneRostro ? 'Volver a registrar' : 'Registrar rostro'}
                     </button>

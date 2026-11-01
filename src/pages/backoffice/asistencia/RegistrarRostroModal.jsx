@@ -6,7 +6,8 @@ const CAPTURAS = 5
 
 // Registro de la huella facial de un trabajador. Se hace UNA vez (desde la tablet o el
 // celular del jefe). Se toman 5 lecturas y se guarda el promedio; la imagen no sale del equipo.
-export default function RegistrarRostroModal({ trabajador, onClose, onGuardar }) {
+/** propio = el mismo vendedor registra su rostro (la autorización la da él, en primera persona). */
+export default function RegistrarRostroModal({ trabajador, onClose, onGuardar, propio = false }) {
   const video = useRef(null)
   const stream = useRef(null)
   const [estado, setEstado] = useState('cargando') // cargando | listo | capturando | error
@@ -55,7 +56,7 @@ export default function RegistrarRostroModal({ trabajador, onClose, onGuardar })
   }
 
   return (
-    <Modal isOpen onClose={onClose} title={`Registrar rostro: ${trabajador.nombre}`} size="lg">
+    <Modal isOpen onClose={onClose} title={propio ? 'Registrar mi rostro' : `Registrar rostro: ${trabajador.nombre}`} size="lg">
       <div className="space-y-4">
         <div className="relative rounded-2xl overflow-hidden bg-black aspect-video">
           <video ref={video} playsInline muted className="w-full h-full object-cover -scale-x-100" />
@@ -70,11 +71,19 @@ export default function RegistrarRostroModal({ trabajador, onClose, onGuardar })
         <label className="flex items-start gap-3 p-3 rounded-xl text-xs leading-relaxed cursor-pointer"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--bd-1)', color: 'var(--tx-2)' }}>
           <input type="checkbox" checked={consentimiento} onChange={(e) => setConsentimiento(e.target.checked)} className="mt-0.5" />
-          <span>
-            <strong style={{ color: 'var(--tx-1)' }}>{trabajador.nombre}</strong> autorizó por escrito el tratamiento de su
-            dato biométrico (rostro) con la única finalidad de registrar su entrada y salida, conforme a la Ley 1581 de 2012.
-            Sabe que es voluntario, que puede pedir que se borre en cualquier momento y que no se guardan fotos.
-          </span>
+          {propio ? (
+            <span>
+              <strong style={{ color: 'var(--tx-1)' }}>Autorizo</strong> el tratamiento de mi dato biométrico (rostro) con la única
+              finalidad de registrar mi entrada y salida, conforme a la Ley 1581 de 2012. Sé que es voluntario, que no se guardan
+              fotos (solo una huella cifrada) y que puedo borrarlo cuando quiera desde "Mi asistencia".
+            </span>
+          ) : (
+            <span>
+              <strong style={{ color: 'var(--tx-1)' }}>{trabajador.nombre}</strong> autorizó por escrito el tratamiento de su
+              dato biométrico (rostro) con la única finalidad de registrar su entrada y salida, conforme a la Ley 1581 de 2012.
+              Sabe que es voluntario, que puede pedir que se borre en cualquier momento y que no se guardan fotos.
+            </span>
+          )}
         </label>
 
         {error && <p className="text-sm text-red-500">{error}</p>}

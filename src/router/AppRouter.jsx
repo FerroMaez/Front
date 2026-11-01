@@ -24,6 +24,7 @@ import InventoryPage     from '../pages/backoffice/inventory/InventoryPage'
 import OrdersPage        from '../pages/backoffice/orders/OrdersPage'
 import NotificationsPage from '../pages/backoffice/notifications/NotificationsPage'
 import AsistenciaPage from '../pages/backoffice/asistencia/AsistenciaPage'
+import MiAsistenciaPage from '../pages/backoffice/asistencia/MiAsistenciaPage'
 import KioscoAsistenciaPage from '../pages/asistencia/KioscoAsistenciaPage'
 
 /** @param {{ children: import('react').ReactNode }} props */
@@ -48,6 +49,13 @@ function RequireBackoffice({ children }) {
 function RequireJefe({ children }) {
   const { user } = useAuthStore()
   if (user?.rol !== 'JEFE') return <Navigate to="/backoffice/ordenes" replace />
+  return <>{children}</>
+}
+
+/** Páginas solo del vendedor (EMPLEADO). Un jefe que entre se lleva a la asistencia de todos. */
+function RequireEmpleado({ children }) {
+  const { user } = useAuthStore()
+  if (user?.rol !== 'EMPLEADO') return <Navigate to="/backoffice/asistencia" replace />
   return <>{children}</>
 }
 
@@ -85,6 +93,7 @@ export default function AppRouter() {
           <Route path="ordenes"       element={<OrdersPage />} />
           <Route path="notificaciones" element={<RequireJefe><NotificationsPage /></RequireJefe>} />
           <Route path="asistencia"    element={<RequireJefe><AsistenciaPage /></RequireJefe>} />
+          <Route path="mi-asistencia" element={<RequireEmpleado><MiAsistenciaPage /></RequireEmpleado>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
