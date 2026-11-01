@@ -15,7 +15,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // 401 = sesión vencida → volver al login. Excepto en las propias rutas de login
+    // (/auth/...): ahí un 401 es "credenciales inválidas" y la página debe mostrar el error,
+    // no recargarse (antes el mensaje desaparecía al instante).
+    if (error.response?.status === 401 && !error.config?.url?.startsWith('/auth/')) {
       localStorage.removeItem('manhid-token')
       localStorage.removeItem('manhid-user')
       window.location.href = '/login'

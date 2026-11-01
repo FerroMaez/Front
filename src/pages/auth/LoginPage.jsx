@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import { authService } from '../../services/api/authService'
 import { useAuthStore } from '../../store/authStore'
+import GoogleLoginButton from '../../components/auth/GoogleLoginButton'
 
 export default function LoginPage() {
   const navigate  = useNavigate()
@@ -30,21 +31,41 @@ export default function LoginPage() {
     return Object.keys(e).length === 0
   }
 
+  // Común a contraseña y Google: guardar sesión y llevar a cada rol a su página
+  const entrar = ({ accessToken, usuario }) => {
+    login(usuario, accessToken)
+    let dest = '/perfil'
+    if (usuario.rol === 'JEFE') dest = '/backoffice'
+    else if (usuario.rol === 'EMPLEADO') dest = '/backoffice/ordenes'
+    else if (returnTo && returnTo !== '/') dest = returnTo
+    navigate(dest, { replace: true })
+  }
+
+  // El backend responde { error: "..." }
+  const mensajeError = (err, porDefecto) =>
+    err?.response?.data?.error || err?.response?.data?.message || porDefecto
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setApiErr('')
     if (!validate()) return
     setLoading(true)
     try {
-      const { accessToken, usuario } = await authService.login(form)
-      login(usuario, accessToken)
-      let dest = '/perfil'
-      if (usuario.rol === 'JEFE') dest = '/backoffice'
-      else if (usuario.rol === 'EMPLEADO') dest = '/backoffice/ordenes'
-      else if (returnTo && returnTo !== '/') dest = returnTo
-      navigate(dest, { replace: true })
+      entrar(await authService.login(form))
     } catch (err) {
-      setApiErr(err?.response?.data?.message || 'Error al iniciar sesión.')
+      setApiErr(mensajeError(err, 'Error al iniciar sesión.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogle = async (credential) => {
+    setApiErr('')
+    setLoading(true)
+    try {
+      entrar(await authService.loginGoogle(credential))
+    } catch (err) {
+      setApiErr(mensajeError(err, 'No se pudo iniciar sesión con Google.'))
     } finally {
       setLoading(false)
     }
@@ -114,6 +135,17 @@ export default function LoginPage() {
               {loading ? 'Ingresando...' : 'Iniciar Sesión'}
             </button>
           </form>
+
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <>
+              <div className="flex items-center gap-3 my-6" aria-hidden="true">
+                <div className="flex-1 h-px" style={{ backgroundColor: 'var(--bd-1)' }} />
+                <span className="text-xs" style={{ color: 'var(--tx-3)' }}>o</span>
+                <div className="flex-1 h-px" style={{ backgroundColor: 'var(--bd-1)' }} />
+              </div>
+              <GoogleLoginButton onCredential={handleGoogle} disabled={loading} />
+            </>
+          )}
         </div>
       </div>
     </div>
