@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../../components/ui/Modal'
-import { abrirCamara, cargarModelos, cerrarCamara, detectar, promediar, OJO_ABIERTO, TAMANO_MINIMO } from '../../../features/asistencia/rostro'
+import { abrirCamara, cargarModelos, cerrarCamara, detectar, posicionEnCirculo, promediar, OJO_ABIERTO } from '../../../features/asistencia/rostro'
+import CirculoRostro, { MENSAJE_CIRCULO } from '../../../features/asistencia/CirculoRostro'
 
 const CAPTURAS = 5
 
@@ -12,6 +13,7 @@ export default function RegistrarRostroModal({ trabajador, onClose, onGuardar, p
   const stream = useRef(null)
   const [estado, setEstado] = useState('cargando') // cargando | listo | capturando | error
   const [progreso, setProgreso] = useState(0)
+  const [guia, setGuia] = useState('sin-cara')
   const [consentimiento, setConsentimiento] = useState(false)
   const [error, setError] = useState('')
 
@@ -36,15 +38,18 @@ export default function RegistrarRostroModal({ trabajador, onClose, onGuardar, p
     const limite = Date.now() + 15000
     while (lecturas.length < CAPTURAS && Date.now() < limite) {
       const cara = await detectar(video.current).catch(() => null)
-      if (cara && cara.tamano >= TAMANO_MINIMO && cara.ear > OJO_ABIERTO && cara.score > 0.7) {
+      const pos = posicionEnCirculo(cara && cara.score > 0.7 ? cara : null)
+      setGuia(pos)
+      // Solo cuenta con la cara dentro del círculo, cerca y con los ojos abiertos (huella de calidad)
+      if (pos === 'ok' && cara.ear > OJO_ABIERTO) {
         lecturas.push(Array.from(cara.descriptor))
         setProgreso(lecturas.length)
       }
       await new Promise((r) => setTimeout(r, 250))
     }
     if (lecturas.length < CAPTURAS) {
-      setError('No se vio bien la cara. Que mire de frente, cerca de la cámara, con buena luz y ojos abiertos.')
-      setEstado('listo'); setProgreso(0)
+      setError('No se vio bien la cara. Ponla dentro del círculo, de frente, con buena luz y los ojos abiertos.')
+      setEstado('listo'); setProgreso(0); setGuia('sin-cara')
       return
     }
     try {
@@ -61,10 +66,15 @@ export default function RegistrarRostroModal({ trabajador, onClose, onGuardar, p
         <div className="relative rounded-2xl overflow-hidden bg-black aspect-video">
           <video ref={video} playsInline muted className="w-full h-full object-cover -scale-x-100" />
           {estado === 'cargando' && <p className="absolute inset-0 flex items-center justify-center text-white text-sm">Preparando cámara…</p>}
-          {estado === 'capturando' && (
-            <p className="absolute bottom-3 inset-x-0 text-center text-white font-semibold drop-shadow">
-              Mirando a la cámara… {progreso}/{CAPTURAS}
-            </p>
+          {estado !== 'cargando' && estado !== 'error' && (
+            <>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <CirculoRostro estado={estado === 'capturando' ? guia : 'sin-cara'} progreso={progreso / CAPTURAS} className="h-[82%]" />
+              </div>
+              <p className="absolute bottom-3 inset-x-0 text-center text-white font-semibold drop-shadow">
+                {estado === 'capturando' ? MENSAJE_CIRCULO[guia] : 'Pon tu cara dentro del círculo y pulsa "Registrar"'}
+              </p>
+            </>
           )}
         </div>
 

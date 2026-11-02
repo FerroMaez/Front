@@ -45,8 +45,28 @@ export async function detectar(video) {
     ear: (aperturaOjo(landmarks.getLeftEye()) + aperturaOjo(landmarks.getRightEye())) / 2,
     // Qué fracción del ancho del video ocupa la cara (muy lejos = huella poco fiable)
     tamano: detection.box.width / video.videoWidth,
+    // Centro de la cara en el cuadro (0..1). x viene sin espejo: la pantalla se ve en espejo.
+    centro: {
+      x: (detection.box.x + detection.box.width / 2) / video.videoWidth,
+      y: (detection.box.y + detection.box.height / 2) / video.videoHeight,
+    },
     score: detection.score,
   }
+}
+
+/** Distancia máxima del centro de la cara al centro del cuadro para contarla "dentro del círculo". */
+export const DESVIO_MAXIMO = 0.16
+
+/**
+ * ¿Cómo está la cara respecto al círculo guía?
+ * @returns {'sin-cara' | 'lejos' | 'fuera' | 'ok'}
+ */
+export function posicionEnCirculo(cara) {
+  if (!cara) return 'sin-cara'
+  if (cara.tamano < TAMANO_MINIMO) return 'lejos'
+  const dx = cara.centro.x - 0.5
+  const dy = cara.centro.y - 0.5
+  return Math.hypot(dx, dy) > DESVIO_MAXIMO ? 'fuera' : 'ok'
 }
 
 /**
