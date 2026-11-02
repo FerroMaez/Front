@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FaCamera, FaCheckCircle, FaExternalLinkAlt, FaTrash } from 'react-icons/fa'
+import { FaCamera, FaCheckCircle, FaClock, FaTrash } from 'react-icons/fa'
 import { asistenciaService } from '../../../services/api/asistenciaService'
 import RegistrarRostroModal from './RegistrarRostroModal'
+import MarcarAsistenciaModal from './MarcarAsistenciaModal'
 
 // "Mi asistencia" del vendedor (rol EMPLEADO):
 //   1. Registra SU rostro (él mismo da la autorización).
-//   2. Abre la pantalla de marcación en la tablet de la entrada.
+//   2. Marca entrada/salida en un popup (en la tablet de la empresa).
 //   3. Ve sus marcaciones de los últimos 7 días.
 // El jefe ve la hora de entrada y salida en Backoffice → Asistencia.
 
@@ -15,6 +16,7 @@ const dia = (iso) => new Date(iso).toLocaleDateString('es-CO', { weekday: 'long'
 export default function MiAsistenciaPage() {
   const [datos, setDatos] = useState(null)
   const [registrando, setRegistrando] = useState(false)
+  const [marcando, setMarcando] = useState(false)
   const [toast, setToast] = useState('')
   const [error, setError] = useState('')
 
@@ -73,14 +75,12 @@ export default function MiAsistenciaPage() {
           <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', opacity: t.tieneRostro ? 1 : 0.6 }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>2 · Marcar entrada / salida</p>
             <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
-              En la tablet de la entrada: abre la pantalla de marcación y mira a la cámara un segundo.
-              Solo funciona en la tablet de la empresa.
+              Pon tu cara dentro del círculo y espera a que se llene. Solo funciona en la tablet de la empresa.
             </p>
-            <a href="/asistencia/kiosco" target="_blank" rel="noreferrer"
-              className={`btn-primary text-sm gap-2 mt-4 inline-flex ${t.tieneRostro ? '' : 'pointer-events-none'}`}
-              aria-disabled={!t.tieneRostro}>
-              <FaExternalLinkAlt size={11} /> Abrir pantalla de marcación
-            </a>
+            <button onClick={() => setMarcando(true)} disabled={!t.tieneRostro || !t.activo}
+              className="btn-primary text-sm gap-2 mt-4 disabled:opacity-50">
+              <FaClock size={12} /> Marcar entrada / salida
+            </button>
           </div>
         </div>
       )}
@@ -104,11 +104,11 @@ export default function MiAsistenciaPage() {
 
       {registrando && t && (
         <RegistrarRostroModal propio trabajador={t} onClose={() => setRegistrando(false)}
-          onGuardar={async (descriptor, consentimiento) => {
-            await asistenciaService.registrarMiRostro(descriptor, consentimiento)
-            setRegistrando(false); aviso('¡Listo! Tu rostro quedó registrado.'); cargar()
-          }} />
+          onGuardar={(descriptor, consentimiento) => asistenciaService.registrarMiRostro(descriptor, consentimiento)}
+          onListo={cargar} />
       )}
+
+      {marcando && <MarcarAsistenciaModal onClose={() => setMarcando(false)} onMarcado={cargar} />}
     </div>
   )
 }

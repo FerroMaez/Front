@@ -10,6 +10,8 @@ export const asistenciaService = {
   registrarMiRostro: (descriptor, consentimiento) =>
     api.put('/asistencia/yo/rostro', { descriptor, consentimiento }).then((r) => r.data),
   borrarMiRostro: () => api.delete('/asistencia/yo/rostro').then((r) => r.data),
+  // Compara solo contra el rostro del vendedor logueado (1 a 1); solo funciona dentro del túnel
+  marcarMiAsistencia: (descriptor) => api.post('/asistencia/yo/marcar', { descriptor }).then((r) => r.data),
 
   // ── Jefes ──
   trabajadores: () => api.get('/asistencia/trabajadores').then((r) => r.data),

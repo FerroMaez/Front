@@ -185,10 +185,8 @@ export default function AsistenciaPage() {
 
       {registrando && (
         <RegistrarRostroModal trabajador={registrando} onClose={() => setRegistrando(null)}
-          onGuardar={async (descriptor, consentimiento) => {
-            await asistenciaService.registrarRostro(registrando.id, descriptor, consentimiento)
-            setRegistrando(null); aviso(`Rostro de ${registrando.nombre} registrado.`); cargar()
-          }} />
+          onGuardar={(descriptor, consentimiento) => asistenciaService.registrarRostro(registrando.id, descriptor, consentimiento)}
+          onListo={cargar} />
       )}
     </div>
   )
