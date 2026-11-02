@@ -7,11 +7,13 @@ import MarcarAsistenciaModal from './MarcarAsistenciaModal'
 // "Mi asistencia" del vendedor (rol EMPLEADO):
 //   1. Registra SU rostro (él mismo da la autorización).
 //   2. Marca entrada/salida en un popup (en la tablet de la empresa).
-//   3. Ve sus marcaciones de los últimos 7 días.
+//   3. Ve su historial: una entrada y una salida por día (últimos 30 días).
 // El jefe ve la hora de entrada y salida en Backoffice → Asistencia.
 
 const hora = (iso) => new Date(iso).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
 const dia = (iso) => new Date(iso).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+const hoyISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+const duracion = (a, b) => { const m = Math.round((new Date(b) - new Date(a)) / 60000); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min` }
 
 export default function MiAsistenciaPage() {
   const [datos, setDatos] = useState(null)
@@ -29,9 +31,16 @@ export default function MiAsistenciaPage() {
 
   const t = datos?.trabajador
   // Agrupa las marcaciones por día (la más reciente primero)
+  // Historial: un renglón por día con su entrada y su salida (la más reciente primero)
   const porDia = Object.entries((datos?.marcaciones || []).reduce((acc, m) => {
-    const k = m.fechaHora.slice(0, 10); (acc[k] ||= []).push(m); return acc
+    const k = m.fechaHora.slice(0, 10)
+    acc[k] ||= {}
+    if (m.tipo === 'ENTRADA') acc[k].entrada ??= m.fechaHora
+    else acc[k].salida = m.fechaHora
+    return acc
   }, {})).sort(([a], [b]) => b.localeCompare(a))
+  const hoy = Object.fromEntries(porDia)[hoyISO()] || {}
+  const jornadaCompleta = Boolean(hoy.entrada && hoy.salida)
 
   return (
     <div className="max-w-3xl">
@@ -73,32 +82,51 @@ export default function MiAsistenciaPage() {
 
           {/* Paso 2 */}
           <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', opacity: t.tieneRostro ? 1 : 0.6 }}>
-            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>2 · Marcar entrada / salida</p>
-            <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
-              Pon tu cara dentro del círculo y espera a que se llene. Solo funciona en la tablet de la empresa.
-            </p>
-            <button onClick={() => setMarcando(true)} disabled={!t.tieneRostro || !t.activo}
-              className="btn-primary text-sm gap-2 mt-4 disabled:opacity-50">
-              <FaClock size={12} /> Marcar entrada / salida
-            </button>
+            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>2 · Hoy</p>
+            <div className="flex gap-6 text-sm" style={{ color: 'var(--tx-2)' }}>
+              <p>Entrada: <strong style={{ color: 'var(--tx-1)' }}>{hoy.entrada ? hora(hoy.entrada) : '—'}</strong></p>
+              <p>Salida: <strong style={{ color: 'var(--tx-1)' }}>{hoy.salida ? hora(hoy.salida) : '—'}</strong></p>
+            </div>
+            {jornadaCompleta ? (
+              <p className="flex items-center gap-2 mt-4 text-sm font-semibold text-green-600 dark:text-green-400">
+                <FaCheckCircle /> Jornada de hoy completa. Mañana podrás marcar de nuevo.
+              </p>
+            ) : (
+              <>
+                <button onClick={() => setMarcando(true)} disabled={!t.tieneRostro || !t.activo}
+                  className="btn-primary text-sm gap-2 mt-4 disabled:opacity-50">
+                  <FaClock size={12} /> {hoy.entrada ? 'Marcar salida' : 'Marcar entrada'}
+                </button>
+                <p className="text-xs mt-2" style={{ color: 'var(--tx-3)' }}>Pon tu cara en el círculo. Solo funciona en la tablet de la empresa.</p>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {t && (
         <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-          <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--tx-3)' }}>Mis marcaciones (últimos 7 días)</p>
+          <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--tx-3)' }}>Mi historial (últimos 30 días)</p>
           {porDia.length === 0 && <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Todavía no tienes marcaciones.</p>}
-          <ul className="space-y-3">
-            {porDia.map(([fecha, lista]) => (
-              <li key={fecha}>
-                <p className="text-sm font-semibold first-letter:uppercase" style={{ color: 'var(--tx-1)' }}>{dia(lista[0].fechaHora)}</p>
-                <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
-                  {lista.map((m) => `${m.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} ${hora(m.fechaHora)}`).join('  ·  ')}
-                </p>
-              </li>
-            ))}
-          </ul>
+          {porDia.length > 0 && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ color: 'var(--tx-3)' }}>
+                  {['Día', 'Entrada', 'Salida', 'Horas'].map((h) => <th key={h} className="text-left text-xs font-bold uppercase tracking-wider pb-2">{h}</th>)}
+                </tr>
+              </thead>
+              <tbody style={{ color: 'var(--tx-2)' }}>
+                {porDia.map(([fecha, d]) => (
+                  <tr key={fecha} style={{ borderTop: '1px solid var(--bd-1)' }}>
+                    <td className="py-2 font-semibold first-letter:uppercase" style={{ color: 'var(--tx-1)' }}>{dia(`${fecha}T12:00:00`)}</td>
+                    <td className="py-2">{d.entrada ? hora(d.entrada) : '—'}</td>
+                    <td className="py-2">{d.salida ? hora(d.salida) : (fecha === hoyISO() ? 'Trabajando' : '—')}</td>
+                    <td className="py-2">{d.entrada && d.salida ? duracion(d.entrada, d.salida) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

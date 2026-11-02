@@ -37,7 +37,9 @@ export default function MarcarAsistenciaModal({ onClose, onMarcado }) {
         setTimeout(() => { onMarcado?.(r); onClose() }, CIERRE_MS)
       } catch (e) {
         setError(e.response?.data?.error || 'No se pudo registrar. Inténtalo de nuevo.')
-        setTimeout(() => { setError(''); camara.reiniciar() }, CIERRE_MS)
+        // 409 = ya tiene entrada y salida de hoy: no tiene sentido reintentar, se cierra
+        if (e.response?.status === 409) setTimeout(() => { onMarcado?.(); onClose() }, CIERRE_MS)
+        else setTimeout(() => { setError(''); camara.reiniciar() }, CIERRE_MS)
       }
     },
   })

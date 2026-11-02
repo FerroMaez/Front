@@ -88,7 +88,22 @@ export default function AsistenciaPage() {
                   style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
               </label>
             ))}
-            {!esHoy && <button onClick={() => { setDesde(hoyISO()); setHasta(hoyISO()) }} className="btn-outline text-xs">Hoy</button>}
+            {[
+              ['Hoy', 0],
+              ['Últimos 7 días', 6],
+              ['Este mes', null],
+            ].map(([l, dias]) => {
+              const hoy = hoyISO()
+              const inicio = dias === null ? `${hoy.slice(0, 8)}01` : new Date(Date.parse(`${hoy}T12:00:00`) - dias * 864e5).toISOString().slice(0, 10)
+              const activo = desde === inicio && hasta === hoy
+              return (
+                <button key={l} onClick={() => { setDesde(inicio); setHasta(hoy) }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border ${activo ? 'bg-brand-600 text-white border-transparent' : ''}`}
+                  style={{ color: activo ? undefined : 'var(--tx-2)', borderColor: activo ? undefined : 'var(--bd-1)' }}>
+                  {l}
+                </button>
+              )
+            })}
           </div>
 
           {sinLlegar.length > 0 && (
