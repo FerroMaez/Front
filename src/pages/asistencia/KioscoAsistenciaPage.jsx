@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { asistenciaService } from '../../services/api/asistenciaService'
 import {
-  abrirCamara, cargarModelos, cerrarCamara, detectar, promediar,
-  OJO_ABIERTO, OJO_CERRADO, TAMANO_MINIMO,
+  abrirCamara, cargarModelos, cerrarCamara, detectar, promediar, TAMANO_MINIMO,
 } from '../../features/asistencia/rostro'
 
 // Pantalla de la tablet de la entrada (pantalla completa, sin login).
 // Solo funciona dentro del túnel WireGuard: fuera de él el backend responde 403.
 //
-// Flujo: buscando cara → "parpadea" (prueba de vida: una foto no parpadea) →
-//        captura 3 huellas con los ojos abiertos → envía el promedio → muestra el resultado.
+// Flujo: buscando cara → con la cara clara y quieta toma 3 lecturas seguidas (~1 s) →
+//        envía el promedio → muestra el resultado. Si la persona se aparta, vuelve a empezar.
+// Sin prueba de parpadeo (decisión del negocio): solo la tablet de la oficina puede marcar
+// y el jefe ve cada marcación.
 
 const INTERVALO_MS = 200
 const RESULTADO_MS = 5000
@@ -20,15 +21,15 @@ const formatoHora = (iso) => new Date(iso).toLocaleTimeString('es-CO', { hour: '
 export default function KioscoAsistenciaPage() {
   const video = useRef(null)
   const stream = useRef(null)
-  const estado = useRef({ fase: 'buscando', cerrado: false, capturas: [], sinCaraDesde: null, desde: 0 })
-  const [fase, setFase] = useState('verificando') // verificando | no-autorizado | cargando | buscando | parpadea | enviando | resultado | no-reconocido | error
+  const estado = useRef({ fase: 'buscando', capturas: [], desde: 0 })
+  const [fase, setFase] = useState('verificando') // verificando | no-autorizado | cargando | buscando | capturando | enviando | resultado | no-reconocido | error
   const [mensaje, setMensaje] = useState('')
   const [resultado, setResultado] = useState(null)
   const [reloj, setReloj] = useState(new Date())
 
   const irA = useCallback((f) => { estado.current = { ...estado.current, fase: f, desde: Date.now() }; setFase(f) }, [])
   const reiniciar = useCallback(() => {
-    estado.current = { fase: 'buscando', cerrado: false, capturas: [], sinCaraDesde: null, desde: Date.now() }
+    estado.current = { fase: 'buscando', capturas: [], desde: Date.now() }
     setFase('buscando')
   }, [])
 
@@ -89,22 +90,14 @@ export default function KioscoAsistenciaPage() {
     let vivo = true
     const paso = async () => {
       const s = estado.current
-      if (['buscando', 'parpadea'].includes(s.fase)) {
+      if (['buscando', 'capturando'].includes(s.fase)) {
         const cara = await detectar(video.current).catch(() => null)
-        const ahora = Date.now()
-        if (!cara || cara.tamano < TAMANO_MINIMO) {
-          s.sinCaraDesde ??= ahora
-          if (s.fase === 'parpadea' && ahora - s.sinCaraDesde > 1500) reiniciar()   // se fue
+        if (!cara || cara.tamano < TAMANO_MINIMO || cara.score < 0.6) {
+          if (s.fase === 'capturando') reiniciar()                  // se apartó: vuelve a empezar
         } else {
-          s.sinCaraDesde = null
-          if (s.fase === 'buscando') {
-            irA('parpadea')
-          } else if (cara.ear < OJO_CERRADO) {
-            s.cerrado = true                                        // parpadeó
-          } else if (s.cerrado && cara.ear > OJO_ABIERTO) {
-            s.capturas.push(Array.from(cara.descriptor))            // ojos abiertos tras el parpadeo
-            if (s.capturas.length >= CAPTURAS) enviar(s.capturas)
-          }
+          if (s.fase === 'buscando') irA('capturando')
+          s.capturas.push(Array.from(cara.descriptor))              // lecturas seguidas de la misma cara
+          if (s.capturas.length >= CAPTURAS) enviar(s.capturas)
         }
       }
       if (vivo) setTimeout(paso, INTERVALO_MS)
@@ -118,7 +111,7 @@ export default function KioscoAsistenciaPage() {
   return (
     <div className="fixed inset-0 bg-slate-950 text-white flex flex-col items-center justify-center select-none overflow-hidden">
       <video ref={video} playsInline muted
-        className={`absolute inset-0 w-full h-full object-cover -scale-x-100 transition-opacity ${['buscando', 'parpadea', 'enviando'].includes(fase) ? 'opacity-60' : 'opacity-0'}`} />
+        className={`absolute inset-0 w-full h-full object-cover -scale-x-100 transition-opacity ${['buscando', 'capturando', 'enviando'].includes(fase) ? 'opacity-60' : 'opacity-0'}`} />
 
       <div className="relative z-10 text-center px-6 max-w-xl">
         <p className="text-6xl font-bold tabular-nums">{reloj.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })}</p>
@@ -127,7 +120,7 @@ export default function KioscoAsistenciaPage() {
         {fase === 'verificando' && <Aviso>Conectando…</Aviso>}
         {fase === 'cargando' && <Aviso>Preparando el reconocimiento facial…</Aviso>}
         {fase === 'buscando' && <Aviso>Acércate a la cámara para marcar tu entrada o salida</Aviso>}
-        {fase === 'parpadea' && <Aviso grande>👁️ Parpadea despacio</Aviso>}
+        {fase === 'capturando' && <Aviso grande>Quédate quieto…</Aviso>}
         {fase === 'enviando' && <Aviso>Verificando…</Aviso>}
 
         {fase === 'resultado' && resultado && (

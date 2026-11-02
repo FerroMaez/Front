@@ -73,7 +73,7 @@ export default function MiAsistenciaPage() {
           <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', opacity: t.tieneRostro ? 1 : 0.6 }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>2 · Marcar entrada / salida</p>
             <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
-              En la tablet de la entrada: abre la pantalla de marcación, mírate en la cámara y parpadea.
+              En la tablet de la entrada: abre la pantalla de marcación y mira a la cámara un segundo.
               Solo funciona en la tablet de la empresa.
             </p>
             <a href="/asistencia/kiosco" target="_blank" rel="noreferrer"
