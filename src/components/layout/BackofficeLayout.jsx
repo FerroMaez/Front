@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaWarehouse } from 'react-icons/fa'
+import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaWarehouse, FaUserClock } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -96,8 +96,10 @@ export default function BackofficeLayout() {
     { to: '/backoffice/arreglos',      label: 'Arreglos',   icon: <FaTools size={15}/>, soloJefe: true },
     { to: '/backoffice/bodega',        label: 'Bodega',     icon: <FaWarehouse size={15}/>, soloJefe: true },
     { to: '/backoffice/ordenes',       label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
+    { to: '/backoffice/asistencia',    label: 'Asistencia', icon: <FaUserClock size={15}/>, soloJefe: true },
+    { to: '/backoffice/mi-asistencia', label: 'Mi asistencia', icon: <FaUserClock size={15}/>, soloEmpleado: true },
     { to: '/backoffice/notificaciones', label: 'Alertas',   icon: <FaBell size={15}/>, badge: unreadCount, soloJefe: true },
-  ].filter(l => esJefe || !l.soloJefe)
+  ].filter(l => (esJefe || !l.soloJefe) && (!esJefe || !l.soloEmpleado))
 
   const SideNav = ({ onClick }) => (
     <nav className="flex flex-col gap-1 p-3">

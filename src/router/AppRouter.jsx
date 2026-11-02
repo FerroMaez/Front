@@ -23,6 +23,9 @@ import DashboardPage     from '../pages/backoffice/dashboard/DashboardPage'
 import InventoryPage     from '../pages/backoffice/inventory/InventoryPage'
 import OrdersPage        from '../pages/backoffice/orders/OrdersPage'
 import NotificationsPage from '../pages/backoffice/notifications/NotificationsPage'
+import AsistenciaPage from '../pages/backoffice/asistencia/AsistenciaPage'
+import MiAsistenciaPage from '../pages/backoffice/asistencia/MiAsistenciaPage'
+import KioscoAsistenciaPage from '../pages/asistencia/KioscoAsistenciaPage'
 
 /** @param {{ children: import('react').ReactNode }} props */
 function RequireAuth({ children }) {
@@ -49,6 +52,13 @@ function RequireJefe({ children }) {
   return <>{children}</>
 }
 
+/** Páginas solo del vendedor (EMPLEADO). Un jefe que entre se lleva a la asistencia de todos. */
+function RequireEmpleado({ children }) {
+  const { user } = useAuthStore()
+  if (user?.rol !== 'EMPLEADO') return <Navigate to="/backoffice/asistencia" replace />
+  return <>{children}</>
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -69,6 +79,10 @@ export default function AppRouter() {
           <Route path="/historial" element={<RequireAuth><ProfilePage /></RequireAuth>} />
         </Route>
 
+        {/* ── Tablet de asistencia: pantalla completa, sin login. Solo funciona dentro del
+             túnel WireGuard (el backend responde 403 desde cualquier otra red). ── */}
+        <Route path="/asistencia/kiosco" element={<KioscoAsistenciaPage />} />
+
         {/* ── Backoffice ───────────────────────────────── */}
         <Route path="/backoffice" element={<RequireBackoffice><BackofficeLayout /></RequireBackoffice>}>
           <Route index                element={<RequireJefe><DashboardPage /></RequireJefe>} />
@@ -78,6 +92,8 @@ export default function AppRouter() {
           <Route path="bodega"        element={<RequireJefe><InventoryPage key="bodega" tipoInventario="BODEGA" titulo="Bodega" /></RequireJefe>} />
           <Route path="ordenes"       element={<OrdersPage />} />
           <Route path="notificaciones" element={<RequireJefe><NotificationsPage /></RequireJefe>} />
+          <Route path="asistencia"    element={<RequireJefe><AsistenciaPage /></RequireJefe>} />
+          <Route path="mi-asistencia" element={<RequireEmpleado><MiAsistenciaPage /></RequireEmpleado>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
