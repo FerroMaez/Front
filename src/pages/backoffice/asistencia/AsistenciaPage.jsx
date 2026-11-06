@@ -39,7 +39,7 @@ export default function AsistenciaPage() {
   }, [desde, hasta])
 
   useEffect(() => { cargar() }, [cargar])
-  // Tiempo real: cuando alguien marca en la tablet, se actualiza solo
+  // Tiempo real: cuando un vendedor marca, se actualiza solo
   useEffect(() => { websocketService.connect(); return websocketService.onAsistencia(cargar) }, [cargar])
 
   const esHoy = desde === hoyISO() && hasta === hoyISO()
@@ -64,7 +64,7 @@ export default function AsistenciaPage() {
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Asistencia</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>Entradas y salidas que los vendedores marcan con su rostro en la tablet de la entrada</p>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>Entradas y salidas que los vendedores marcan con su rostro</p>
       </div>
 
       <div className="flex gap-2 mb-5">

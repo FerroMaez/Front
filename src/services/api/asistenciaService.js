@@ -1,7 +1,7 @@
 import api from './axiosInstance'
 
 export const asistenciaService = {
-  // ── Tablet (solo funciona dentro del túnel WireGuard) ──
+  // ── Kiosco sin login (apagado salvo que el backend tenga ASISTENCIA_RED_KIOSCO) ──
   estadoKiosco: () => api.get('/asistencia/kiosco/estado').then((r) => r.data),
   marcar: (descriptor) => api.post('/asistencia/marcar', { descriptor }).then((r) => r.data),
 
