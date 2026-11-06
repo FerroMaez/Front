@@ -103,8 +103,8 @@ export const companyInfo = {
   city: 'Bogotá, D.C.',
   whatsapp: '+573134949118',
   hours: {
-    weekdays: 'Lunes a Viernes: 8:00 AM - 6:00 PM',
-    saturday: 'Sábados: 8:00 AM - 2:00 PM',
+    weekdays: 'Lunes a Viernes: 8:00 AM - 5:00 PM',
+    saturday: 'Sábados: 8:00 AM - 1:00 PM',
   },
   social: {
     instagram: 'https://instagram.com',

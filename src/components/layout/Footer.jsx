@@ -73,7 +73,7 @@ export default function Footer() {
                   href: `tel:${companyInfo.phone1.replace(/\s/g,'')}` },
                 { icon: <FaEnvelope     size={13} />, text: companyInfo.email.toLowerCase(),
                   href: `mailto:${companyInfo.email}` },
-                { icon: <FaClock        size={13} />, text: `Lun–Vie 8–18 h · Sáb 8–14 h` },
+                { icon: <FaClock        size={13} />, text: `Lun–Vie 8–17 h · Sáb 8–13 h` },
               ].map(({ icon, text, href }) => (
                 <li key={text} className="flex items-start gap-3 text-sm text-gray-400">
                   <span className="text-aqua-400 mt-0.5 flex-shrink-0">{icon}</span>
