@@ -226,15 +226,25 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     }
   }
 
-  // Bodega → Arreglos: el backend busca (o crea) el mismo producto en arreglos y le suma todo.
+  // Cuántas unidades mover en cada fila de Bodega/Arreglos (por defecto, todas)
+  const [aMover, setAMover] = useState({})
+  const cantidadAMover = (p) => {
+    const n = Number(aMover[p.id])
+    return Number.isInteger(n) && n >= 1 && n <= p.stock_disponible ? n : p.stock_disponible
+  }
+  const unidades = (n) => `${n} ${n === 1 ? 'unidad' : 'unidades'}`
+
+  // Bodega → Arreglos: el backend busca (o crea) el mismo producto en arreglos y le suma las
+  // unidades elegidas; las demás se quedan en bodega.
   const transferirAArreglos = async (item) => {
     if (!item.stock_disponible || item.stock_disponible <= 0) return
     setLoading(true)
     try {
-      const cantidad = item.stock_disponible
-      await productService.transferToArreglos(item.id)
-      showToast(`Se pasaron ${cantidad} unidades de ${item.nombre} a Arreglos.`)
-      setProducts(current => current.filter(p => p.id !== item.id))
+      const cantidad = cantidadAMover(item)
+      await productService.transferToArreglos(item.id, cantidad)
+      showToast(`Se ${cantidad === 1 ? 'pasó' : 'pasaron'} ${unidades(cantidad)} de ${item.nombre} a Arreglos.`)
+      setAMover(m => ({ ...m, [item.id]: undefined }))
+      if (cantidad === item.stock_disponible) setProducts(current => current.filter(p => p.id !== item.id))
       await load()
     } catch (err) {
       showToast(err.response?.data?.error || 'No se pudo pasar el producto a Arreglos.')
@@ -257,10 +267,11 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         showToast('Crea primero en Inventario el producto con la misma línea, medida y condición.')
         return
       }
-      const cantidad = arreglo.stock_disponible
-      await productService.transferArrangement(arreglo.id, destino.id)
-      showToast('Se sumaron ' + cantidad + ' unidades a ' + destino.nombre + '.')
-      setProducts(current => current.filter(p => p.id !== arreglo.id))
+      const cantidad = cantidadAMover(arreglo)
+      await productService.transferArrangement(arreglo.id, destino.id, cantidad)
+      showToast(`Se ${cantidad === 1 ? 'sumó' : 'sumaron'} ${unidades(cantidad)} a ${destino.nombre}.`)
+      setAMover(m => ({ ...m, [arreglo.id]: undefined }))
+      if (cantidad === arreglo.stock_disponible) setProducts(current => current.filter(p => p.id !== arreglo.id))
       await load()
     } catch (err) {
       showToast(err.response?.data?.error || 'No se pudo sumar el arreglo al inventario.')
@@ -379,10 +390,22 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                       <>
                         <td className="px-4 py-3 font-semibold">{p.stock_disponible}</td>
                         <td className="px-4 py-3">
-                          <button type="button" onClick={() => (esBodega ? transferirAArreglos(p) : transferirAlInventario(p))} disabled={loading || p.stock_disponible <= 0}
-                            className="btn-primary text-xs px-3 py-2 disabled:opacity-50">
-                            {esBodega ? 'Pasar a arreglos' : 'Sumar al inventario'}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {p.stock_disponible > 1 && (
+                              <input type="number" min={1} max={p.stock_disponible} step={1}
+                                aria-label={`Unidades a ${esBodega ? 'pasar a arreglos' : 'sumar al inventario'}`}
+                                title={`Cuántas de las ${p.stock_disponible}`}
+                                value={aMover[p.id] ?? p.stock_disponible}
+                                onChange={e => setAMover(m => ({ ...m, [p.id]: e.target.value }))}
+                                className="w-16 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
+                                style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+                            )}
+                            <button type="button" onClick={() => (esBodega ? transferirAArreglos(p) : transferirAlInventario(p))}
+                              disabled={loading || p.stock_disponible <= 0}
+                              className="btn-primary text-xs px-3 py-2 whitespace-nowrap disabled:opacity-50">
+                              {esBodega ? `Pasar ${cantidadAMover(p)} a arreglos` : `Sumar ${cantidadAMover(p)} al inventario`}
+                            </button>
+                          </div>
                         </td>
                       </>
                     ) : (
