@@ -11,6 +11,7 @@ const publicLinks = [
   { label: 'Inicio',         to: '/' },
   { label: 'Quiénes Somos',  to: '/quienes-somos' },
   { label: 'Mantenimientos', to: '/mantenimientos' },
+  { label: 'Trabajos',       to: '/trabajos-terminados' },
   { label: 'Contáctanos',    to: '/contacto' },
 ]
 

@@ -7,6 +7,7 @@ const navLinks = [
   { label: 'Catálogo',       to: '/catalogo' },
   { label: 'Quiénes Somos',  to: '/quienes-somos' },
   { label: 'Mantenimientos', to: '/mantenimientos' },
+  { label: 'Trabajos terminados', to: '/trabajos-terminados' },
   { label: 'Contáctanos',    to: '/contacto' },
 ]
 
