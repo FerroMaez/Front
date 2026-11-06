@@ -59,18 +59,17 @@ const MEDIDAS_EXCEL = {
   ],
   "BOLA EN COBRE": [
     "1/2\"",
-    "1\" - 11/2\" - 2\"",
+    "1\" - 1 1/2\" - 2\"",
     "2 1/2\"",
     "3\""
   ],
   "BOLA EN PVC": [
-    "1/2\"",
+    "1/2\" - 3/4\"",
     "1\""
   ],
   "VARILLA EN BRONCE": [
     "1/2\"",
-    "5/16\"",
-    "3/8\""
+    "5/16\""
   ],
   "VARILLA EN INOXIDABLE": [
     "5/16\"",
@@ -82,30 +81,30 @@ const MEDIDAS_EXCEL = {
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/2\"",
+    "1 1/2\"",
     "2\""
   ],
   "VALVULA DE BOLA BRONCE": [
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
   "REGULADORA BRONCE": [
     "1/2\"",
-    "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\""
   ],
   "VENTOSA EN BONCE": [
     "1/2\"",
+    "3/4\"",
     "1\""
   ],
   "VALVULA EXTREMO LIZO H D": [
@@ -139,7 +138,9 @@ const MEDIDAS_EXCEL = {
   "VAL MARIPOSA H D RANURADA": [
     "2\"",
     "3\"",
-    "4\""
+    "4\"",
+    "6\"",
+    "8\""
   ],
   "VAL MARIPOSA H D": [
     "2\"",
@@ -154,7 +155,7 @@ const MEDIDAS_EXCEL = {
     "3\"",
     "4\"",
     "6\"",
-    "10\""
+    "8\""
   ],
   "CHEQUE HIDRO BRIDADO H D": [
     "3\"",
@@ -186,7 +187,9 @@ const MEDIDAS_EXCEL = {
     "3\"",
     "4\"",
     "6\"",
-    "8\""
+    "8\"",
+    "10\"",
+    "12\""
   ],
   "UNION BORRACHA H D": [
     "1 1/2\"",
@@ -227,7 +230,7 @@ const MEDIDAS_EXCEL = {
     "6\""
   ],
   "EMPAQUE NEOPRENO BRIDADO": [
-    "2\"",
+    "1 1/2\"",
     "2 1/2\"",
     "3\"",
     "4\"",
@@ -493,21 +496,38 @@ const MEDIDAS_EXCEL = {
     "6\""
   ],
   "REDUCCION RAN RAN RCI": [
-    "1 1/2\" X 1\"",
-    "1 1/2x1 1/4",
-    "2 1/2 X 1 1/2",
-    "3 X 2",
-    "3 X 1 1/2",
-    "4 X 1 1/2",
-    "4 x 3",
-    "4 x 2",
-    "6 x 4"
+    "2\" x 1 1/4\"",
+    "2\" x 1 1/2\"",
+    "2 1/2\" x 1 1/4\"",
+    "2 1/2\" x 1 1/2\"",
+    "2 1/2\" x 2\"",
+    "3\" x 1 1/2\"",
+    "3\" x 2\"",
+    "3\" x 2 1/2\"",
+    "4\" x 2\"",
+    "4\" x 2 1/2\"",
+    "4\" x 3\"",
+    "6\" x 2\"",
+    "6\" x 2 1/2\"",
+    "6\" x 3\"",
+    "6\" x 4\""
   ],
   "REDUCCION RAN ROS RCI": [
-    "2 x 1",
-    "2 x1 1/4",
-    "3 x 11/4",
-    "4 X 1"
+    "2\" x 1 1/4\"",
+    "2\" x 1 1/2\"",
+    "2 1/2\" x 1 1/4\"",
+    "2 1/2\" x 1 1/2\"",
+    "2 1/2\" x 2\"",
+    "3\" x 1 1/2\"",
+    "3\" x 2\"",
+    "3\" x 2 1/2\"",
+    "4\" x 2\"",
+    "4\" x 2 1/2\"",
+    "4\" x 3\"",
+    "6\" x 2\"",
+    "6\" x 2 1/2\"",
+    "6\" x 3\"",
+    "6\" x 4\""
   ],
   "MARTILLO RCI": [
     "0-200"
@@ -522,6 +542,9 @@ const MEDIDAS_EXCEL = {
     "1 1/2\""
   ],
   "BRIDA CUELLO RCI": [
+    "1 1/2\"",
+    "2\"",
+    "2 1/2\"",
     "3\"",
     "4\"",
     "6\""
@@ -538,10 +561,16 @@ const MEDIDAS_EXCEL = {
     "6\""
   ],
   "VAL MARIPOSA RCI": [
-    "3\""
+    "1 1/2\"",
+    "2\"",
+    "2 1/2\"",
+    "3\"",
+    "4\"",
+    "6\""
   ],
   "VALVULA BRIDADA RCI": [
     "2\"",
+    "2 1/2\"",
     "3\"",
     "4\"",
     "6\""
@@ -553,33 +582,38 @@ const MEDIDAS_EXCEL = {
     "6\""
   ],
   "SIAMESA BRONCE RCI": [
-    "4 x 2 1/2\""
+    "4\" x 2 1/2\""
   ],
   "VALVULA VISOR": [
     "1\"",
     "1 1/2\""
   ],
   "VALVULA REGULADORA RCI": [
-    "46115"
+    "2\"",
+    "2 1/2\"",
+    "3\"",
+    "4\"",
+    "6\""
   ],
   "ROSEADORES BRONCE": [
     "1/2\""
   ],
   "VENTOSA RCI": [
+    "3/4\"",
     "1\""
   ],
   "CHEQUE HIDRO A INOX": [
-    "11/2\"",
+    "1 1/2\"",
     "2\""
   ],
   "CHEQUE CORTINA A INOX": [
-    "11/2\"",
+    "1 1/2\"",
     "2\""
   ],
   "UNIVERSAL A INOX": [
     "1/2\"",
     "1\"",
-    "11/2\"",
+    "1 1/2\"",
     "2\""
   ],
   "VALVULA BOLA A INOX": [
@@ -587,10 +621,10 @@ const MEDIDAS_EXCEL = {
     "3/4\"",
     "3/8\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
@@ -598,17 +632,17 @@ const MEDIDAS_EXCEL = {
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/2\"",
+    "1 1/2\"",
     "2\""
   ],
   "SEMI CODO A INOX": [
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
@@ -616,10 +650,10 @@ const MEDIDAS_EXCEL = {
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
@@ -627,10 +661,10 @@ const MEDIDAS_EXCEL = {
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
@@ -638,9 +672,9 @@ const MEDIDAS_EXCEL = {
     "1\" X 1/2\"",
     "3/4\" x 1/2\"",
     "1\" x 3/4\"",
-    "11/4\"",
-    "11/2\" x 3/4\"",
-    "11/2\" x 1\"",
+    "1 1/4\"",
+    "1 1/2\" x 3/4\"",
+    "1 1/2\" x 1\"",
     "2\" X 1\"",
     "2 X 1 1/2\"",
     "3\" X 2",
@@ -650,10 +684,10 @@ const MEDIDAS_EXCEL = {
     "1\" X 1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\" X 1\"",
+    "1 1/4\"",
+    "1 1/2\" X 1\"",
     "2\" X1\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
@@ -661,10 +695,10 @@ const MEDIDAS_EXCEL = {
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
@@ -672,20 +706,98 @@ const MEDIDAS_EXCEL = {
     "1/2\"",
     "3/4\"",
     "1\"",
-    "11/4\"",
-    "11/2\"",
+    "1 1/4\"",
+    "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
   ],
   "BRIDA ROSCAR A INOX": [
     "1 1/2\"",
     "2\"",
-    "21/2\"",
+    "2 1/2\"",
     "3\"",
     "4\""
-  ]
+  ],
+  "INCENDIO VALVULA VISOR PRUEBA Y DRENAJE": [
+    "3/4\"",
+    "1\"",
+    "1 1/4\"",
+    "1 1/2\"",
+    "2\""
+  ],
+  "INCENDIO ROCIADOR EN BRONCE": [
+    "1/2\"",
+    "3/4\""
+  ],
+  "ACUEDUCTO UNION BRIDA X ACOPLE": [
+    "1 1/2\"",
+    "2\"",
+    "2 1/2\"",
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\"",
+    "10\"",
+    "12\""
+  ],
+  "ACUEDUCTO UNION R1 X R2": [
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\"",
+    "10\"",
+    "12\""
+  ],
+  "ACUEDUCTO UNION GARRA DE TIGRE": [
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\"",
+    "10\""
+  ],
+  "ACUEDUCTO UNION BORRACHA ANTIVIBRATORIA": [
+    "1 1/2\"",
+    "2\"",
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\""
+  ],
+  "ACUEDUCTO CODO E L 90": [
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\""
+  ],
+  "ACUEDUCTO SEMICODO E L 45": [
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\""
+  ],
+  "ACUEDUCTO REDUCCION E L": [
+    "3\" x 2\"",
+    "4\" x 3\"",
+    "6\" x 3\"",
+    "6\" x 4\""
+  ],
+  "ACUEDUCTO TAPON E L": [
+    "2\"",
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\""
+  ],
+  "ACUEDUCTO BRIDA LOCA UNIVERSAL": [
+    "2\"",
+    "3\"",
+    "4\"",
+    "6\"",
+    "8\""
+  ],
+  "ACUEDUCTO CAJA ACUEDUCTO": []
 }
 
 const ALIAS_PRODUCTO = {
@@ -733,6 +845,31 @@ const ALIAS_PRODUCTO = {
   'PVC|TUBERIA': 'TUBO PVC PRESION',
   'PVC|LIMPIADOR': 'LIMPIADOR PAVCO',
   'PVC|SOLDADURA': 'PEGANTE SOLDADURA PAVCO',
+  // Hoja "CORRECIONES PAGINA" (noviembre 2026)
+  'HIDRAULICA|REGULADORA CRUZ EN BRONCE': 'REGULADORA BRONCE',
+  'HIDRAULICA|VENTOSA EN BRONCE': 'VENTOSA EN BONCE',
+  'INCENDIO|VALVULA VISOR PRUEBA Y DRENAJE': 'INCENDIO VALVULA VISOR PRUEBA Y DRENAJE',
+  'INCENDIO|VALVULA VENTOSA': 'VENTOSA RCI',
+  'INCENDIO|REDUCCION RANURA RANURA': 'REDUCCION RAN RAN RCI',
+  'INCENDIO|REDUCCION RANURA ROSCA': 'REDUCCION RAN ROS RCI',
+  'INCENDIO|MANGUERA BOMBEROS': 'MANGUERA RCI',
+  'INCENDIO|SIAMESA TOMA PARA BOMBEROS': 'SIAMESA BRONCE RCI',
+  'INCENDIO|ROCIADOR EN BRONCE': 'INCENDIO ROCIADOR EN BRONCE',
+  'INCENDIO|VALVULA REGULADORA DE PRESION RANURADA': 'VALVULA REGULADORA RCI',
+  'ACUEDUCTO|UNION BRIDA X ACOPLE': 'ACUEDUCTO UNION BRIDA X ACOPLE',
+  'ACUEDUCTO|UNION R1 X R2': 'ACUEDUCTO UNION R1 X R2',
+  'ACUEDUCTO|UNION GARRA DE TIGRE': 'ACUEDUCTO UNION GARRA DE TIGRE',
+  'ACUEDUCTO|VALVULA MARIPOSA TIPO WAFER': 'VAL MARIPOSA H D',
+  'ACUEDUCTO|VALVULA MARIPOSA RANURADA': 'VAL MARIPOSA H D RANURADA',
+  'ACUEDUCTO|DUO CHEQUE': 'DUO CHEQUE H D',
+  'ACUEDUCTO|UNION BORRACHA ANTIVIBRATORIA': 'ACUEDUCTO UNION BORRACHA ANTIVIBRATORIA',
+  'ACUEDUCTO|CODO E L 90': 'ACUEDUCTO CODO E L 90',
+  'ACUEDUCTO|SEMICODO E L 45': 'ACUEDUCTO SEMICODO E L 45',
+  'ACUEDUCTO|REDUCCION E L': 'ACUEDUCTO REDUCCION E L',
+  'ACUEDUCTO|TAPON E L': 'ACUEDUCTO TAPON E L',
+  'ACUEDUCTO|BRIDA LOCA UNIVERSAL': 'ACUEDUCTO BRIDA LOCA UNIVERSAL',
+  'ACUEDUCTO|EMPAQUE PARA BRIDA': 'EMPAQUE NEOPRENO BRIDADO',
+  'ACUEDUCTO|CAJA ACUEDUCTO': 'ACUEDUCTO CAJA ACUEDUCTO',
 }
 
 function normalizar(valor) {
