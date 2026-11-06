@@ -13,6 +13,8 @@ import MarcarAsistenciaModal from './MarcarAsistenciaModal'
 const hora = (iso) => new Date(iso).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
 const dia = (iso) => new Date(iso).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 const hoyISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+// '08:00:00' → '8:00 a. m.'
+const horaCorta = (hhmm) => new Date(`2000-01-01T${hhmm}`).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
 const duracion = (a, b) => { const m = Math.round((new Date(b) - new Date(a)) / 60000); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min` }
 
 export default function MiAsistenciaPage() {
@@ -41,6 +43,9 @@ export default function MiAsistenciaPage() {
   }, {})).sort(([a], [b]) => b.localeCompare(a))
   const hoy = Object.fromEntries(porDia)[hoyISO()] || {}
   const jornadaCompleta = Boolean(hoy.entrada && hoy.salida)
+  // Domingos y festivos de Colombia no hay jornada (lo decide el backend)
+  const jornadaHoy = datos?.jornadaHoy
+  const sinJornada = jornadaHoy && !jornadaHoy.laboral
 
   return (
     <div className="max-w-3xl">
@@ -83,11 +88,18 @@ export default function MiAsistenciaPage() {
           {/* Paso 2 */}
           <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)', opacity: t.tieneRostro ? 1 : 0.6 }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tx-3)' }}>2 · Hoy</p>
+            {jornadaHoy?.laboral && (
+              <p className="text-xs mb-2" style={{ color: 'var(--tx-3)' }}>Horario: {horaCorta(jornadaHoy.entrada)} – {horaCorta(jornadaHoy.salida)}</p>
+            )}
             <div className="flex gap-6 text-sm" style={{ color: 'var(--tx-2)' }}>
               <p>Entrada: <strong style={{ color: 'var(--tx-1)' }}>{hoy.entrada ? hora(hoy.entrada) : '—'}</strong></p>
               <p>Salida: <strong style={{ color: 'var(--tx-1)' }}>{hoy.salida ? hora(hoy.salida) : '—'}</strong></p>
             </div>
-            {jornadaCompleta ? (
+            {sinJornada ? (
+              <p className="mt-4 text-sm font-semibold" style={{ color: 'var(--tx-2)' }}>
+                Hoy no hay jornada ({jornadaHoy.motivo}). No se marca entrada ni salida.
+              </p>
+            ) : jornadaCompleta ? (
               <p className="flex items-center gap-2 mt-4 text-sm font-semibold text-green-600 dark:text-green-400">
                 <FaCheckCircle /> Jornada de hoy completa. Mañana podrás marcar de nuevo.
               </p>
