@@ -6,7 +6,7 @@ import MarcarAsistenciaModal from './MarcarAsistenciaModal'
 
 // "Mi asistencia" del vendedor (rol EMPLEADO):
 //   1. Registra SU rostro (él mismo da la autorización).
-//   2. Marca entrada/salida en un popup (en la tablet de la empresa).
+//   2. Marca entrada/salida en un popup (desde su celular o la tablet de la tienda).
 //   3. Ve su historial: una entrada y una salida por día (últimos 30 días).
 // El jefe ve la hora de entrada y salida en Backoffice → Asistencia.
 
@@ -47,7 +47,7 @@ export default function MiAsistenciaPage() {
       {toast && <div className="fixed top-20 right-4 z-50 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-brand-600 shadow-lg">{toast}</div>}
 
       <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Mi asistencia</h1>
-      <p className="text-sm mt-0.5 mb-6" style={{ color: 'var(--tx-3)' }}>Registra tu rostro una vez y marca tu entrada y salida en la tablet de la entrada.</p>
+      <p className="text-sm mt-0.5 mb-6" style={{ color: 'var(--tx-3)' }}>Registra tu rostro una vez y marca tu entrada y salida con tu cara.</p>
 
       {error && <p className="mb-4 p-3 rounded-xl text-sm text-red-500 bg-red-500/10 border border-red-500/20">{error}</p>}
 
@@ -97,7 +97,7 @@ export default function MiAsistenciaPage() {
                   className="btn-primary text-sm gap-2 mt-4 disabled:opacity-50">
                   <FaClock size={12} /> {hoy.entrada ? 'Marcar salida' : 'Marcar entrada'}
                 </button>
-                <p className="text-xs mt-2" style={{ color: 'var(--tx-3)' }}>Pon tu cara en el círculo. Solo funciona en la tablet de la empresa.</p>
+                <p className="text-xs mt-2" style={{ color: 'var(--tx-3)' }}>Pon tu cara en el círculo cuando llegues y cuando te vayas.</p>
               </>
             )}
           </div>

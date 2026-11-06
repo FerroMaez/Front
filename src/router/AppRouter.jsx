@@ -79,8 +79,8 @@ export default function AppRouter() {
           <Route path="/historial" element={<RequireAuth><ProfilePage /></RequireAuth>} />
         </Route>
 
-        {/* ── Tablet de asistencia: pantalla completa, sin login. Solo funciona dentro del
-             túnel WireGuard (el backend responde 403 desde cualquier otra red). ── */}
+        {/* ── Kiosco de asistencia sin login: apagado en producción (sin VPN el backend responde
+             403). Los vendedores marcan desde "Mi asistencia" con su cuenta. ── */}
         <Route path="/asistencia/kiosco" element={<KioscoAsistenciaPage />} />
 
         {/* ── Backoffice ───────────────────────────────── */}
