@@ -8,6 +8,7 @@ import HomePage          from '../pages/home/HomePage'
 import CatalogPage       from '../pages/catalog/CatalogPage'
 import ServicePage       from '../pages/catalog/ServicePage'
 import MaintenancePage   from '../pages/maintenance/MaintenancePage'
+import TrabajosTerminadosPage from '../pages/trabajos/TrabajosTerminadosPage'
 import ContactPage       from '../pages/contact/ContactPage'
 import AboutPage         from '../pages/about/AboutPage'
 
@@ -69,6 +70,7 @@ export default function AppRouter() {
           <Route path="/catalogo"       element={<CatalogPage />} />
           <Route path="/servicios/:slug" element={<ServicePage />} />
           <Route path="/mantenimientos" element={<MaintenancePage />} />
+          <Route path="/trabajos-terminados" element={<TrabajosTerminadosPage />} />
           <Route path="/contacto"       element={<ContactPage />} />
           <Route path="/quienes-somos"  element={<AboutPage />} />
           <Route path="/login"               element={<LoginPage />} />

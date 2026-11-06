@@ -1,4 +1,5 @@
-import { FaWhatsapp, FaTools, FaCalendarAlt, FaShieldAlt, FaRecycle } from 'react-icons/fa'
+import { Link } from 'react-router-dom'
+import { FaWhatsapp, FaTools, FaCalendarAlt, FaShieldAlt, FaRecycle, FaArrowRight } from 'react-icons/fa'
 import { companyInfo } from '../../features/catalog/catalogData'
 import Carrusel, { FotoCompleta } from '../../features/mantenimiento/Carrusel'
 
@@ -7,14 +8,6 @@ import Carrusel, { FotoCompleta } from '../../features/mantenimiento/Carrusel'
 // Ejemplo: { antes: '/mantenimiento/antes-despues/1-antes.jpg', despues: '/mantenimiento/antes-despues/1-despues.jpg', titulo: 'Válvula reguladora de presión' }
 const ANTES_DESPUES = []
 
-const TRABAJOS_TERMINADOS = [
-  { src: '/mantenimiento/trabajos/1.jpg', titulo: 'Sistema de bombeo con tanque hidroneumático' },
-  { src: '/mantenimiento/trabajos/2.jpg', titulo: 'Tuberías de succión en acero inoxidable con válvulas de pie' },
-  { src: '/mantenimiento/trabajos/3.jpg', titulo: 'Montaje de equipo de bombeo con válvulas de compuerta y cheque' },
-  { src: '/mantenimiento/trabajos/4.jpg', titulo: 'Línea de descarga con válvula de compuerta y manómetro' },
-  { src: '/mantenimiento/trabajos/5.jpg', titulo: 'Sistema de presión con tres bombas y tanque hidroacumulador' },
-  { src: '/mantenimiento/trabajos/6.jpg', titulo: 'Manifold en acero inoxidable con válvulas de compuerta y cheque' },
-]
 
 const SERVICIOS = [
   { icon: <FaTools size={18} />,       title: 'Preventivo', desc: 'Inspección, ajuste y calibración periódica de componentes hidráulicos.' },
@@ -54,7 +47,7 @@ export default function MaintenancePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 mb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
         {/* Descripción del proceso */}
         <div className="lg:col-span-3">
           <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--tx-1)' }}>Nuestro proceso</h2>
@@ -106,11 +99,21 @@ export default function MaintenancePage() {
               <FaWhatsapp size={15} /> Chatear ahora
             </a>
           </div>
+
+          <Link to="/trabajos-terminados"
+            className="flex items-center justify-between gap-3 p-5 rounded-2xl transition-all hover:-translate-y-0.5"
+            style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+            <span>
+              <span className="block font-semibold text-sm" style={{ color: 'var(--tx-1)' }}>Trabajos terminados</span>
+              <span className="block text-xs mt-0.5" style={{ color: 'var(--tx-2)' }}>Mira fotos de instalaciones que hemos entregado</span>
+            </span>
+            <FaArrowRight className="text-aqua-600 dark:text-aqua-300 flex-shrink-0" size={14} />
+          </Link>
         </div>
       </div>
 
       {ANTES_DESPUES.length > 0 && (
-        <section className="mb-16">
+        <section className="mt-16">
           <div className="section-badge mb-3">Resultados</div>
           <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--tx-1)' }}>Antes y después</h2>
           <p className="text-sm mb-6" style={{ color: 'var(--tx-2)' }}>Así recibimos los equipos y así los entregamos.</p>
@@ -118,14 +121,6 @@ export default function MaintenancePage() {
         </section>
       )}
 
-      <section>
-        <div className="section-badge mb-3">Galería</div>
-        <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--tx-1)' }}>Trabajos terminados</h2>
-        <p className="text-sm mb-6" style={{ color: 'var(--tx-2)' }}>Algunas de las instalaciones y mantenimientos que hemos entregado.</p>
-        <div className="max-w-4xl">
-          <Carrusel items={TRABAJOS_TERMINADOS} miniaturas alto="h-[420px] sm:h-[560px]" />
-        </div>
-      </section>
     </div>
   )
 }
