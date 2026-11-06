@@ -37,7 +37,7 @@ export const websocketService = {
     ventaOfflineListeners.add(fn)
     return () => ventaOfflineListeners.delete(fn)
   },
-  /** Marcación de asistencia en la tablet (solo JEFE). */
+  /** Marcación de asistencia de un vendedor (solo JEFE). */
   onAsistencia(fn) {
     asistenciaListeners.add(fn)
     return () => asistenciaListeners.delete(fn)
