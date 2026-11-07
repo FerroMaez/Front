@@ -5,6 +5,8 @@ const mapOrder = (o) => ({
   id: o.id,
   estado: o.estado,
   total_cotizacion: Number(o.totalCotizacion) || 0,
+  // Lo que pagó el cliente; las órdenes sin ese dato se cuentan por el total de los productos.
+  total_pagado: o.totalPagado != null ? Number(o.totalPagado) : null,
   motivo_cancelacion: o.motivoCancelacion,
   es_venta_fisica: o.esVentaFisica,
   descripcion: o.descripcion,
@@ -61,11 +63,12 @@ export const orderService = {
 
   // `clave`: UUID de la venta. Si la respuesta se pierde y se reintenta (o la venta pasa a la
   // cola offline con esa misma clave), el backend NO la registra dos veces.
-  ventaFisica: async (items, cliente, descripcion, clave) => {
+  ventaFisica: async (items, cliente, descripcion, clave, totalPagado) => {
     return api.post('/ordenes/venta-fisica', {
       items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio || 'ECONOMICO' })),
       cliente,
       descripcion,
+      totalPagado,
     }, { headers: clave ? { 'Idempotency-Key': clave } : {} }).then(r => mapOrder(r.data))
   },
 
