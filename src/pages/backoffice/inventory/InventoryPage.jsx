@@ -23,7 +23,7 @@ const IMAGEN_LINEA = {
 const emptyForm = {
   linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
   descripcion: '', precio_unitario: '', stock_disponible: '', stock_minimo: '',
-  estado: 'ACTIVO', pulgadas: '', condicion: '', tipo_precio: '', tipo_inventario: 'INVENTARIO', cantidad: '',
+  estado: 'ACTIVO', pulgadas: '', condicion: '', precio_pesado: '', tipo_inventario: 'INVENTARIO', cantidad: '',
 }
 
 // ── Funciones puras (fuera del componente para reducir complejidad cognitiva) ──
@@ -33,11 +33,6 @@ function subcatsForLinea(lineaValue) {
   return catalogProducts.find(cp => cp.slug === linea.slug)?.subcategorias ?? []
 }
 
-const TIPOS_PRECIO = [
-  { value: 'ECONOMICO', label: 'Precio económico' },
-  { value: 'PESADO',  label: 'Precio pesado' },
-]
-
 function buildErrors(form, esHistorial, hayMedidas) {
   const e = {}
   if (!form.linea_servicio) e.linea_servicio = 'Selecciona la línea de servicio'
@@ -45,8 +40,8 @@ function buildErrors(form, esHistorial, hayMedidas) {
   if (esHistorial) {
     if (!Number.isSafeInteger(Number(form.cantidad)) || Number(form.cantidad) <= 0) e.cantidad = 'Ingresa una cantidad entera mayor que cero'
   } else {
-    if (!form.tipo_precio) e.tipo_precio = 'Elige precio económico o precio pesado'
-    if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = 'Precio inválido'
+    if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = 'Ingresa el precio económico'
+    if (!form.precio_pesado || Number(form.precio_pesado) <= 0) e.precio_pesado = 'Ingresa el precio pesado'
     if (!form.condicion) e.condicion = 'Elige la condición'
     if (hayMedidas && !form.pulgadas) e.pulgadas = 'Elige la medida'
     if (form.stock_disponible === '' || !Number.isSafeInteger(Number(form.stock_disponible)) || Number(form.stock_disponible) < 0) e.stock_disponible = 'Ingresa un stock entero válido'
@@ -141,8 +136,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     setForm({
       linea_servicio: p.linea_servicio || '', nombre: p.nombre || '', imagen_url: p.imagen_url || '',
       categoria: p.categoria || 'OTRO', descripcion: p.descripcion || '', pulgadas: p.pulgadas || '',
-      condicion: p.condicion || '', tipo_precio: p.tipo_precio || '', tipo_inventario: p.tipo_inventario || tipoInventario,
-      precio_unitario: String(p.precio_unitario), stock_disponible: String(p.stock_disponible),
+      condicion: p.condicion || '', tipo_inventario: p.tipo_inventario || tipoInventario,
+      precio_unitario: String(p.precio_unitario), precio_pesado: p.precio_pesado != null ? String(p.precio_pesado) : '', stock_disponible: String(p.stock_disponible),
       stock_minimo: String(p.stock_minimo), estado: p.estado || 'ACTIVO',
     })
     setErrors({})
@@ -210,6 +205,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         ...form,
         tipo_inventario: tipoInventario,
         precio_unitario:  Number(form.precio_unitario),
+        precio_pesado:    Number(form.precio_pesado),
         stock_disponible: Number(form.stock_disponible),
         stock_minimo:     Number(form.stock_minimo),
         linea_label:      linea?.label || '',
@@ -420,12 +416,14 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     ) : (
                       <>
                         <td className="px-4 py-3 font-bold text-sm text-brand-600 dark:text-brand-300">
-                          {formatCOP(p.precio_unitario)}
-                          {p.tipo_precio && (
-                            <span className="block text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
-                              {p.tipo_precio === 'PESADO' ? 'Pesado' : 'Económico'}
-                            </span>
-                          )}
+                          <span className="block whitespace-nowrap">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide mr-1.5" style={{ color: 'var(--tx-3)' }}>Económico</span>
+                            {formatCOP(p.precio_unitario)}
+                          </span>
+                          <span className="block whitespace-nowrap">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide mr-1.5" style={{ color: 'var(--tx-3)' }}>Pesado</span>
+                            {p.precio_pesado != null ? formatCOP(p.precio_pesado) : '—'}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           {(() => {
@@ -678,25 +676,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 {/* Precio */}
 {!esHistorial && (
                 <div>
-                  <span id="inv-tipo-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
-                    Tipo de precio <span className="text-red-500">*</span>
-                  </span>
-                  <div role="radiogroup" aria-labelledby="inv-tipo-precio" className="grid grid-cols-2 gap-1.5 mb-2">
-                    {TIPOS_PRECIO.map(t => {
-                      const activo = form.tipo_precio === t.value
-                      return (
-                        <button key={t.value} type="button" role="radio" aria-checked={activo}
-                          onClick={() => { setForm(f => ({ ...f, tipo_precio: t.value })); setErrors(er => ({ ...er, tipo_precio: '' })) }}
-                          className={`px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activo ? 'bg-brand-600 text-white border-brand-600' : ''}`}
-                          style={activo ? undefined : { backgroundColor: 'var(--bg-input)', borderColor: errors.tipo_precio ? '#ef4444' : 'var(--bd-1)', color: 'var(--tx-2)' }}>
-                          {t.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {errors.tipo_precio && <p className="-mt-1 mb-1 text-[10px] text-red-500">{errors.tipo_precio}</p>}
                   <label htmlFor="inv-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
-                    {(TIPOS_PRECIO.find(t => t.value === form.tipo_precio)?.label || 'Precio')} (COP) <span className="text-red-500">*</span>
+                    Precio económico (COP) <span className="text-red-500">*</span>
                   </label>
                   <input id="inv-precio" type="number" min="0" placeholder="45000"
                     value={form.precio_unitario}
@@ -704,6 +685,19 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
                     style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.precio_unitario ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
                   {errors.precio_unitario && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_unitario}</p>}
+                </div>
+                )}
+{!esHistorial && (
+                <div>
+                  <label htmlFor="inv-precio-pesado" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
+                    Precio pesado (COP) <span className="text-red-500">*</span>
+                  </label>
+                  <input id="inv-precio-pesado" type="number" min="0" placeholder="60000"
+                    value={form.precio_pesado}
+                    onChange={e => { setForm(f => ({ ...f, precio_pesado: e.target.value })); setErrors(er => ({ ...er, precio_pesado: '' })) }}
+                    className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
+                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.precio_pesado ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
+                  {errors.precio_pesado && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_pesado}</p>}
                 </div>
                 )}
 
