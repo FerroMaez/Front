@@ -42,6 +42,7 @@ export default function OrdersPage() {
   const [vfPaso,          setVfPaso]          = useState(1)
   const [productos,       setProductos]       = useState([])
   const [cantidades,      setCantidades]      = useState({})
+  const [tiposPrecio,     setTiposPrecio]     = useState({})   // { [productoId]: 'ECONOMICO' | 'PESADO' }
   const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', email: '' })
   const [vfDescripcion,   setVfDescripcion]   = useState('')
   const [vfBusqueda,      setVfBusqueda]      = useState('')
@@ -66,6 +67,7 @@ export default function OrdersPage() {
     if (!vfOpen) return
     setVfPaso(1)
     setCantidades({})
+    setTiposPrecio({})
     setVfCliente({ nombre: '', telefono: '', email: '' })
     setVfDescripcion('')
     setVfBusqueda('')
@@ -109,10 +111,16 @@ export default function OrdersPage() {
     ? productos.filter(p => normalizar(`${p.nombre} ${p.pulgadas || ''}`).includes(textoVf))
     : productos
 
-  const vfItems = Object.entries(cantidades).filter(([, q]) => q > 0).map(([id, cantidad]) => ({ productoId: +id, cantidad }))
+  // Cada producto se vende al precio económico (por defecto) o al pesado.
+  const tipoPrecioDe = (id) => tiposPrecio[id] || 'ECONOMICO'
+  const tienePesado = (p) => Number(p?.precio_pesado) > 0
+  const precioDe = (p) => (tipoPrecioDe(p.id) === 'PESADO' && tienePesado(p) ? Number(p.precio_pesado) : p.precio_unitario)
+
+  const vfItems = Object.entries(cantidades).filter(([, q]) => q > 0)
+    .map(([id, cantidad]) => ({ productoId: +id, cantidad, tipoPrecio: tipoPrecioDe(+id) }))
   const vfTotal = Object.entries(cantidades).reduce((sum, [id, qty]) => {
     const p = productos.find(pr => pr.id === +id)
-    return sum + (p ? p.precio_unitario * qty : 0)
+    return sum + (p ? precioDe(p) * qty : 0)
   }, 0)
 
   const handleStatus = async (order, newStatus) => {
@@ -167,7 +175,7 @@ export default function OrdersPage() {
         email: vfCliente.email || null,
       }
       const clave = nuevaClave()
-      const items = vfItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad }))
+      const items = vfItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio }))
       try {
         const venta = await orderService.ventaFisica(items, cliente, vfDescripcion, clave)
         setOrders(prev => [venta, ...prev.filter(o => o.id !== venta.id)])
@@ -307,7 +315,14 @@ export default function OrdersPage() {
                       <div className="space-y-1.5">
                         {order.items?.map(item => (
                           <div key={item.producto_id} className="flex justify-between text-xs p-2.5 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
-                            <span style={{ color: 'var(--tx-1)' }}>{item.nombre} <span style={{ color: 'var(--tx-3)' }}>×{item.cantidad}</span></span>
+                            <span style={{ color: 'var(--tx-1)' }}>
+                              {item.nombre} <span style={{ color: 'var(--tx-3)' }}>×{item.cantidad}</span>
+                              {item.tipo_precio && (
+                                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
+                                  · {item.tipo_precio === 'PESADO' ? 'Pesado' : 'Económico'}
+                                </span>
+                              )}
+                            </span>
                             <span className="font-semibold" style={{ color: 'var(--tx-2)' }}>{formatCOP(item.precio_unitario_momento * item.cantidad)}</span>
                           </div>
                         ))}
@@ -483,6 +498,21 @@ export default function OrdersPage() {
                       {reservadoOffline[p.id]} und. en ventas sin sincronizar
                     </p>
                   )}
+                  <div role="radiogroup" aria-label={'Precio de ' + p.nombre} className="mt-1.5 inline-flex rounded-lg overflow-hidden text-[11px] font-semibold"
+                    style={{ border: '1px solid var(--bd-1)' }}>
+                    {[['ECONOMICO', 'Económico', p.precio_unitario, true], ['PESADO', 'Pesado', p.precio_pesado, tienePesado(p)]].map(([valor, etiqueta, precio, habilitado]) => {
+                      const activo = tipoPrecioDe(p.id) === valor
+                      return (
+                        <button key={valor} type="button" role="radio" aria-checked={activo} disabled={!habilitado || stock === 0}
+                          title={habilitado ? undefined : 'Este producto no tiene precio pesado'}
+                          onClick={() => setTiposPrecio(t => ({ ...t, [p.id]: valor }))}
+                          className={`px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activo ? 'bg-brand-600 text-white' : 'hover:bg-brand-500/10'}`}
+                          style={activo ? undefined : { color: 'var(--tx-2)' }}>
+                          {etiqueta} {habilitado ? formatCOP(precio) : '—'}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
                 <input aria-label={'Cantidad de ' + p.nombre} type="number" min="0" max={stock} step="1"
                   value={cantidades[p.id] || ''} placeholder="0" disabled={stock === 0}
@@ -520,12 +550,17 @@ export default function OrdersPage() {
             Resumen de la venta
           </div>
           <div className="divide-y" style={{ borderColor: 'var(--bd-1)' }}>
-            {vfItems.map(({ productoId, cantidad }) => {
+            {vfItems.map(({ productoId, cantidad, tipoPrecio }) => {
               const p = productos.find(pr => pr.id === productoId)
               return p ? (
                 <div key={productoId} className="flex justify-between text-xs px-3 py-2" style={{ color: 'var(--tx-2)' }}>
-                  <span>{p.nombre} ×{cantidad}</span>
-                  <span className="font-semibold">{formatCOP(p.precio_unitario * cantidad)}</span>
+                  <span>
+                    {p.nombre}{p.pulgadas ? ` ${p.pulgadas}` : ''} ×{cantidad}
+                    <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
+                      · {tipoPrecio === 'PESADO' ? 'Pesado' : 'Económico'}
+                    </span>
+                  </span>
+                  <span className="font-semibold">{formatCOP(precioDe(p) * cantidad)}</span>
                 </div>
               ) : null
             })}
