@@ -5,7 +5,7 @@ import {
 } from 'react-icons/fa'
 import { orderService } from '../../../services/api/orderService'
 import { productService } from '../../../services/api/productService'
-import { formatCOP, formatDate } from '../../../utils/formatters'
+import { formatCOP, formatDate, formatDateTime } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
 import { websocketService } from '../../../services/api/websocketService'
 import { encolarVenta, esErrorDeRed, nuevaClave, ventasOfflineSync } from '../../../services/offline/ventasOfflineSync'
@@ -45,6 +45,7 @@ export default function OrdersPage() {
   const [tiposPrecio,     setTiposPrecio]     = useState({})   // { [productoId]: 'ECONOMICO' | 'PESADO' }
   const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', email: '' })
   const [vfDescripcion,   setVfDescripcion]   = useState('')
+  const [vfPagado,        setVfPagado]        = useState('')
   const [vfBusqueda,      setVfBusqueda]      = useState('')
   const [vfErrors,        setVfErrors]        = useState({})
   const [loadingVF,       setLoadingVF]       = useState(false)
@@ -70,6 +71,7 @@ export default function OrdersPage() {
     setTiposPrecio({})
     setVfCliente({ nombre: '', telefono: '', email: '' })
     setVfDescripcion('')
+    setVfPagado('')
     setVfBusqueda('')
     setVfErrors({})
     // Se guarda una copia del catálogo para poder vender aunque se caiga el internet.
@@ -161,6 +163,7 @@ export default function OrdersPage() {
   const validarCliente = () => {
     const e = {}
     if (!vfCliente.nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    if (vfPagado === '' || Number(vfPagado) <= 0) e.pagado = 'Ingresa cuánto pagó el cliente'
     setVfErrors(e)
     return Object.keys(e).length === 0
   }
@@ -175,9 +178,10 @@ export default function OrdersPage() {
         email: vfCliente.email || null,
       }
       const clave = nuevaClave()
+      const totalPagado = Number(vfPagado)
       const items = vfItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio }))
       try {
-        const venta = await orderService.ventaFisica(items, cliente, vfDescripcion, clave)
+        const venta = await orderService.ventaFisica(items, cliente, vfDescripcion, clave, totalPagado)
         setOrders(prev => [venta, ...prev.filter(o => o.id !== venta.id)])
         setFilter('all')
         showToast('Venta física registrada correctamente')
@@ -185,7 +189,7 @@ export default function OrdersPage() {
         if (!esErrorDeRed(err)) throw err
         // Sin internet (o se cortó a mitad): se guarda en la cola local con la MISMA clave.
         // Si la venta sí alcanzó a llegar, al sincronizar el backend la detecta como duplicada.
-        await encolarVenta({ clave, items, cliente, descripcion: vfDescripcion })
+        await encolarVenta({ clave, items, cliente, descripcion: vfDescripcion, totalPagado })
         showToast('📴 Sin conexión: la venta quedó guardada y se enviará sola al volver el internet')
       }
     } catch (err) {
@@ -273,6 +277,10 @@ export default function OrdersPage() {
           const isTerminal = ['VENTA_EXITOSA', 'CANCELADA'].includes(order.estado)
           const isExpanded = expandedId === order.id
           const elapsed    = Math.round((Date.now() - new Date(order.fecha_creacion).getTime()) / 60000)
+          const vendida    = order.estado === 'VENTA_EXITOSA'
+          const pagado     = order.total_pagado ?? order.total_cotizacion
+          // Venta física: la hora real de la venta (también si se hizo sin internet). En línea: cuando se facturó.
+          const fechaPago  = order.es_venta_fisica ? order.fecha_creacion : (order.fecha_cierre || order.fecha_creacion)
 
           return (
             <div key={order.id} className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
@@ -299,7 +307,15 @@ export default function OrdersPage() {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-brand-600 dark:text-brand-300">{formatCOP(order.total_cotizacion)}</p>
+                  {vendida ? (
+                    <>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>Pagado</p>
+                      <p className="font-bold text-brand-600 dark:text-brand-300">{formatCOP(pagado)}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--tx-3)' }}>{formatDateTime(fechaPago)}</p>
+                    </>
+                  ) : (
+                    <p className="font-bold text-brand-600 dark:text-brand-300">{formatCOP(order.total_cotizacion)}</p>
+                  )}
                   <p className="text-[10px]" style={{ color: 'var(--tx-3)' }}>{order.items?.length} producto(s)</p>
                 </div>
                 <FaChevronDown size={12} className={`transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--tx-3)' }} />
@@ -327,6 +343,16 @@ export default function OrdersPage() {
                           </div>
                         ))}
                       </div>
+                      {vendida && order.total_pagado != null && order.total_pagado !== order.total_cotizacion && (
+                        <div className="mt-2 space-y-1 text-xs px-2.5">
+                          <div className="flex justify-between" style={{ color: 'var(--tx-3)' }}>
+                            <span>Total productos</span><span>{formatCOP(order.total_cotizacion)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold" style={{ color: 'var(--tx-1)' }}>
+                            <span>Pagado</span><span>{formatCOP(order.total_pagado)}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Cliente */}
@@ -568,6 +594,30 @@ export default function OrdersPage() {
           <div className="flex justify-between px-3 py-2 font-bold text-sm" style={{ backgroundColor: 'var(--bg-surface)', borderTop: '1px solid var(--bd-1)' }}>
             <span style={{ color: 'var(--tx-1)' }}>Total</span>
             <span className="text-brand-600 dark:text-brand-300">{formatCOP(vfTotal)}</span>
+          </div>
+          <div className="px-3 py-2.5" style={{ borderTop: '1px solid var(--bd-1)' }}>
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="vf-pagado" className="text-sm font-bold" style={{ color: 'var(--tx-1)' }}>
+                Pagado <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => { setVfPagado(String(vfTotal)); setVfErrors(er => ({ ...er, pagado: '' })) }}
+                  className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline whitespace-nowrap">
+                  Igual al total
+                </button>
+                <input id="vf-pagado" type="number" min="0" step="1" inputMode="numeric" placeholder="0"
+                  value={vfPagado}
+                  onChange={e => { setVfPagado(e.target.value); setVfErrors(er => ({ ...er, pagado: '' })) }}
+                  className="w-36 px-3 py-1.5 rounded-xl text-sm text-right font-bold outline-none"
+                  style={{ backgroundColor: 'var(--bg-input)', border: '1px solid ' + (vfErrors.pagado ? '#ef4444' : 'var(--bd-1)'), color: 'var(--tx-1)' }} />
+              </div>
+            </div>
+            {vfErrors.pagado && <p className="mt-1 text-xs text-red-500 text-right">{vfErrors.pagado}</p>}
+            {vfPagado !== '' && Number(vfPagado) > 0 && Number(vfPagado) !== vfTotal && (
+              <p className="mt-1 text-[11px] text-right" style={{ color: 'var(--tx-3)' }}>
+                {Number(vfPagado) < vfTotal ? 'Descuento' : 'Adicional'} de {formatCOP(Math.abs(vfTotal - Number(vfPagado)))} sobre el total
+              </p>
+            )}
           </div>
         </div>
 
