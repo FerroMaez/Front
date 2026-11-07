@@ -524,6 +524,11 @@ export default function OrdersPage() {
                       {reservadoOffline[p.id]} und. en ventas sin sincronizar
                     </p>
                   )}
+                  {p.condicion === 'REMANUFACTURADO' ? (
+                    <p className="mt-1.5 text-[11px] font-semibold" style={{ color: 'var(--tx-2)' }}>
+                      Remanufacturado · {formatCOP(p.precio_unitario)}
+                    </p>
+                  ) : (
                   <div role="radiogroup" aria-label={'Precio de ' + p.nombre} className="mt-1.5 inline-flex rounded-lg overflow-hidden text-[11px] font-semibold"
                     style={{ border: '1px solid var(--bd-1)' }}>
                     {[['ECONOMICO', 'Económico', p.precio_unitario, true], ['PESADO', 'Pesado', p.precio_pesado, tienePesado(p)]].map(([valor, etiqueta, precio, habilitado]) => {
@@ -539,6 +544,7 @@ export default function OrdersPage() {
                       )
                     })}
                   </div>
+                  )}
                 </div>
                 <input aria-label={'Cantidad de ' + p.nombre} type="number" min="0" max={stock} step="1"
                   value={cantidades[p.id] || ''} placeholder="0" disabled={stock === 0}
@@ -583,7 +589,7 @@ export default function OrdersPage() {
                   <span>
                     {p.nombre}{p.pulgadas ? ` ${p.pulgadas}` : ''} ×{cantidad}
                     <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
-                      · {tipoPrecio === 'PESADO' ? 'Pesado' : 'Económico'}
+                      · {p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : tipoPrecio === 'PESADO' ? 'Pesado' : 'Económico'}
                     </span>
                   </span>
                   <span className="font-semibold">{formatCOP(precioDe(p) * cantidad)}</span>

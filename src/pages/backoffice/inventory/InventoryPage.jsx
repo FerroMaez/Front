@@ -40,8 +40,9 @@ function buildErrors(form, esHistorial, hayMedidas) {
   if (esHistorial) {
     if (!Number.isSafeInteger(Number(form.cantidad)) || Number(form.cantidad) <= 0) e.cantidad = 'Ingresa una cantidad entera mayor que cero'
   } else {
-    if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = 'Ingresa el precio económico'
-    if (!form.precio_pesado || Number(form.precio_pesado) <= 0) e.precio_pesado = 'Ingresa el precio pesado'
+    const reman = form.condicion === 'REMANUFACTURADO'   // un solo precio, sin económico ni pesado
+    if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = reman ? 'Ingresa el precio' : 'Ingresa el precio económico'
+    if (!reman && (!form.precio_pesado || Number(form.precio_pesado) <= 0)) e.precio_pesado = 'Ingresa el precio pesado'
     if (!form.condicion) e.condicion = 'Elige la condición'
     if (hayMedidas && !form.pulgadas) e.pulgadas = 'Elige la medida'
     if (form.stock_disponible === '' || !Number.isSafeInteger(Number(form.stock_disponible)) || Number(form.stock_disponible) < 0) e.stock_disponible = 'Ingresa un stock entero válido'
@@ -239,7 +240,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         ...form,
         tipo_inventario: tipoInventario,
         precio_unitario:  Number(form.precio_unitario),
-        precio_pesado:    Number(form.precio_pesado),
+        precio_pesado:    form.condicion === 'REMANUFACTURADO' ? null : Number(form.precio_pesado),
         stock_disponible: Number(form.stock_disponible),
         stock_minimo:     Number(form.stock_minimo),
         linea_label:      linea?.label || '',
@@ -450,14 +451,20 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     ) : (
                       <>
                         <td className="px-4 py-3 font-bold text-sm text-brand-600 dark:text-brand-300">
-                          <span className="block whitespace-nowrap">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide mr-1.5" style={{ color: 'var(--tx-3)' }}>Económico</span>
-                            {formatCOP(p.precio_unitario)}
-                          </span>
-                          <span className="block whitespace-nowrap">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide mr-1.5" style={{ color: 'var(--tx-3)' }}>Pesado</span>
-                            {p.precio_pesado != null ? formatCOP(p.precio_pesado) : '—'}
-                          </span>
+                          {p.condicion === 'REMANUFACTURADO' ? (
+                            <span className="block whitespace-nowrap">{formatCOP(p.precio_unitario)}</span>
+                          ) : (
+                            <>
+                              <span className="block whitespace-nowrap">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide mr-1.5" style={{ color: 'var(--tx-3)' }}>Económico</span>
+                                {formatCOP(p.precio_unitario)}
+                              </span>
+                              <span className="block whitespace-nowrap">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide mr-1.5" style={{ color: 'var(--tx-3)' }}>Pesado</span>
+                                {p.precio_pesado != null ? formatCOP(p.precio_pesado) : '—'}
+                              </span>
+                            </>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           {(() => {
@@ -711,7 +718,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 {!esHistorial && (
                 <div>
                   <label htmlFor="inv-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
-                    Precio económico (COP) <span className="text-red-500">*</span>
+                    {form.condicion === 'REMANUFACTURADO' ? 'Precio' : 'Precio económico'} (COP) <span className="text-red-500">*</span>
                   </label>
                   <input id="inv-precio" type="number" min="0" placeholder="45000"
                     value={form.precio_unitario}
@@ -721,7 +728,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   {errors.precio_unitario && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_unitario}</p>}
                 </div>
                 )}
-{!esHistorial && (
+{!esHistorial && form.condicion !== 'REMANUFACTURADO' && (
                 <div>
                   <label htmlFor="inv-precio-pesado" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     Precio pesado (COP) <span className="text-red-500">*</span>
