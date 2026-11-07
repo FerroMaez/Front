@@ -575,6 +575,13 @@ const MEDIDAS_EXCEL = {
     "4\"",
     "6\""
   ],
+  "CHEQUE RANURADO": [
+    "1 1/2\"",
+    "2\"",
+    "2 1/2\"",
+    "3\"",
+    "4\""
+  ],
   "CHEQUE RANURADO RCI": [
     "2\"",
     "3\"",
