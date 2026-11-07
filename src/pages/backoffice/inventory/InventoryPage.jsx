@@ -64,8 +64,13 @@ function clavePulgadas(medida) {
   return partes.length && partes.every(n => !Number.isNaN(n)) ? partes : [Infinity]
 }
 
-// Orden de la lista: alfabético por nombre y, dentro del mismo nombre, de menor a mayor medida.
+// Orden de la lista: primero por línea de servicio (en el mismo orden del menú: Hidráulicas,
+// Incendios, Acueducto, Acero, PVC), luego por nombre alfabético y luego de menor a mayor medida.
+const ORDEN_LINEA = Object.fromEntries(LINEAS_SERVICIO.map((l, i) => [l.value, i]))
 function compararProductos(a, b) {
+  const la = ORDEN_LINEA[a.linea_servicio] ?? LINEAS_SERVICIO.length
+  const lb = ORDEN_LINEA[b.linea_servicio] ?? LINEAS_SERVICIO.length
+  if (la !== lb) return la - lb
   const porNombre = (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base', numeric: true })
   if (porNombre !== 0) return porNombre
   const ka = clavePulgadas(a.pulgadas)
