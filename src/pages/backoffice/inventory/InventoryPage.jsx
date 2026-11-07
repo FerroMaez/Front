@@ -23,7 +23,7 @@ const IMAGEN_LINEA = {
 const emptyForm = {
   linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
   descripcion: '', precio_unitario: '', stock_disponible: '', stock_minimo: '',
-  estado: 'ACTIVO', pulgadas: '', condicion: 'NUEVO', tipo_inventario: 'INVENTARIO', cantidad: '',
+  estado: 'ACTIVO', pulgadas: '', condicion: '', tipo_precio: '', tipo_inventario: 'INVENTARIO', cantidad: '',
 }
 
 // ── Funciones puras (fuera del componente para reducir complejidad cognitiva) ──
@@ -33,14 +33,22 @@ function subcatsForLinea(lineaValue) {
   return catalogProducts.find(cp => cp.slug === linea.slug)?.subcategorias ?? []
 }
 
-function buildErrors(form, esHistorial) {
+const TIPOS_PRECIO = [
+  { value: 'LIVIANO', label: 'Precio liviano' },
+  { value: 'PESADO',  label: 'Precio pesado' },
+]
+
+function buildErrors(form, esHistorial, hayMedidas) {
   const e = {}
   if (!form.linea_servicio) e.linea_servicio = 'Selecciona la línea de servicio'
   if (!form.nombre) e.nombre = 'Selecciona el producto del catálogo'
   if (esHistorial) {
     if (!Number.isSafeInteger(Number(form.cantidad)) || Number(form.cantidad) <= 0) e.cantidad = 'Ingresa una cantidad entera mayor que cero'
   } else {
+    if (!form.tipo_precio) e.tipo_precio = 'Elige precio liviano o precio pesado'
     if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = 'Precio inválido'
+    if (!form.condicion) e.condicion = 'Elige la condición'
+    if (hayMedidas && !form.pulgadas) e.pulgadas = 'Elige la medida'
     if (form.stock_disponible === '' || !Number.isSafeInteger(Number(form.stock_disponible)) || Number(form.stock_disponible) < 0) e.stock_disponible = 'Ingresa un stock entero válido'
     if (form.stock_minimo === '' || Number(form.stock_minimo) < 0) e.stock_minimo = 'Stock mínimo inválido'
   }
@@ -133,7 +141,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     setForm({
       linea_servicio: p.linea_servicio || '', nombre: p.nombre || '', imagen_url: p.imagen_url || '',
       categoria: p.categoria || 'OTRO', descripcion: p.descripcion || '', pulgadas: p.pulgadas || '',
-      condicion: p.condicion || 'NUEVO', tipo_inventario: p.tipo_inventario || tipoInventario,
+      condicion: p.condicion || '', tipo_precio: p.tipo_precio || '', tipo_inventario: p.tipo_inventario || tipoInventario,
       precio_unitario: String(p.precio_unitario), stock_disponible: String(p.stock_disponible),
       stock_minimo: String(p.stock_minimo), estado: p.estado || 'ACTIVO',
     })
@@ -155,10 +163,11 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
   const handleStockChange = (val) => {
     setForm(f => ({ ...f, stock_disponible: val }))
+    setErrors(er => ({ ...er, stock_disponible: '' }))
   }
 
   const validate = () => {
-    const e = buildErrors(form, esHistorial)
+    const e = buildErrors(form, esHistorial, opcionesMedida.length > 0)
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -410,7 +419,14 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                       </>
                     ) : (
                       <>
-                        <td className="px-4 py-3 font-bold text-sm text-brand-600 dark:text-brand-300">{formatCOP(p.precio_unitario)}</td>
+                        <td className="px-4 py-3 font-bold text-sm text-brand-600 dark:text-brand-300">
+                          {formatCOP(p.precio_unitario)}
+                          {p.tipo_precio && (
+                            <span className="block text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
+                              {p.tipo_precio === 'PESADO' ? 'Pesado' : 'Liviano'}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           {(() => {
                             const color = getStockStatus(Number(p.stock_disponible) || 0, Number(p.stock_minimo) || 0).color
@@ -618,13 +634,16 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="inv-medida" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Medida (pulgadas)</label>
-                  <select id="inv-medida" value={form.pulgadas} onChange={e => setForm(f => ({ ...f, pulgadas: e.target.value }))}
+                  <label htmlFor="inv-medida" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
+                    Medida (pulgadas) {!esHistorial && opcionesMedida.length > 0 && <span className="text-red-500">*</span>}
+                  </label>
+                  <select id="inv-medida" value={form.pulgadas} onChange={e => { setForm(f => ({ ...f, pulgadas: e.target.value })); setErrors(er => ({ ...er, pulgadas: '' })) }}
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                    style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
-                    <option value="">{opcionesMedida.length ? 'Sin medida' : 'Este producto no tiene medidas configuradas'}</option>
+                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.pulgadas ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+                    <option value="">{opcionesMedida.length ? (esHistorial ? 'Sin medida' : 'Selecciona la medida') : 'Este producto no tiene medidas configuradas'}</option>
                     {opcionesMedida.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
+                  {errors.pulgadas && <p className="mt-0.5 text-[10px] text-red-500">{errors.pulgadas}</p>}
                 </div>
                 {esHistorial ? (
                   <div className="flex flex-col justify-center">
@@ -633,13 +652,17 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   </div>
                 ) : (
                 <div>
-                  <label htmlFor="inv-condicion" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Condición</label>
-                  <select id="inv-condicion" value={form.condicion} onChange={e => setForm(f => ({ ...f, condicion: e.target.value }))}
+                  <label htmlFor="inv-condicion" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
+                    Condición <span className="text-red-500">*</span>
+                  </label>
+                  <select id="inv-condicion" value={form.condicion} onChange={e => { setForm(f => ({ ...f, condicion: e.target.value })); setErrors(er => ({ ...er, condicion: '' })) }}
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                    style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }}>
+                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.condicion ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+                    <option value="" disabled>Selecciona</option>
                     <option value="NUEVO">Nuevo</option>
                     <option value="REMANUFACTURADO">Remanufacturado</option>
                   </select>
+                  {errors.condicion && <p className="mt-0.5 text-[10px] text-red-500">{errors.condicion}</p>}
                 </div>
                 )}
                 {esHistorial && (
@@ -655,8 +678,25 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 {/* Precio */}
 {!esHistorial && (
                 <div>
+                  <span id="inv-tipo-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
+                    Tipo de precio <span className="text-red-500">*</span>
+                  </span>
+                  <div role="radiogroup" aria-labelledby="inv-tipo-precio" className="grid grid-cols-2 gap-1.5 mb-2">
+                    {TIPOS_PRECIO.map(t => {
+                      const activo = form.tipo_precio === t.value
+                      return (
+                        <button key={t.value} type="button" role="radio" aria-checked={activo}
+                          onClick={() => { setForm(f => ({ ...f, tipo_precio: t.value })); setErrors(er => ({ ...er, tipo_precio: '' })) }}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activo ? 'bg-brand-600 text-white border-brand-600' : ''}`}
+                          style={activo ? undefined : { backgroundColor: 'var(--bg-input)', borderColor: errors.tipo_precio ? '#ef4444' : 'var(--bd-1)', color: 'var(--tx-2)' }}>
+                          {t.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {errors.tipo_precio && <p className="-mt-1 mb-1 text-[10px] text-red-500">{errors.tipo_precio}</p>}
                   <label htmlFor="inv-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
-                    Precio unitario (COP) <span className="text-red-500">*</span>
+                    {(TIPOS_PRECIO.find(t => t.value === form.tipo_precio)?.label || 'Precio')} (COP) <span className="text-red-500">*</span>
                   </label>
                   <input id="inv-precio" type="number" min="0" placeholder="45000"
                     value={form.precio_unitario}
