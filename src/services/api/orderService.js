@@ -26,6 +26,7 @@ const mapOrder = (o) => ({
     nombre: i.nombreProducto,
     cantidad: i.cantidad,
     precio_unitario_momento: Number(i.precioUnitario) || 0,
+    tipo_precio: i.tipoPrecio || null,
     subtotal: Number(i.subtotal) || 0,
   })),
 })
@@ -62,7 +63,7 @@ export const orderService = {
   // cola offline con esa misma clave), el backend NO la registra dos veces.
   ventaFisica: async (items, cliente, descripcion, clave) => {
     return api.post('/ordenes/venta-fisica', {
-      items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
+      items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio || 'ECONOMICO' })),
       cliente,
       descripcion,
     }, { headers: clave ? { 'Idempotency-Key': clave } : {} }).then(r => mapOrder(r.data))
