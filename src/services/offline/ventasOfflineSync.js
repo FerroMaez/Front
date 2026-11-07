@@ -44,12 +44,12 @@ async function refrescarStore() {
 }
 
 /** Guarda una venta en la cola local. Usa la MISMA clave que el intento online fallido. */
-export async function encolarVenta({ clave, items, cliente, descripcion }) {
+export async function encolarVenta({ clave, items, cliente, descripcion, totalPagado }) {
   const ahora = new Date().toISOString()
   await ventasOfflineDB.guardar({
     clave,
     fechaVenta: ahora,
-    venta: { items, cliente, descripcion: descripcion || null },
+    venta: { items, cliente, descripcion: descripcion || null, totalPagado: totalPagado ?? null },
     estado: 'PENDIENTE',
     motivo: null,
     creadaEn: ahora,
