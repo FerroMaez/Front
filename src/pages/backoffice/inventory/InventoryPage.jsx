@@ -34,7 +34,7 @@ function subcatsForLinea(lineaValue) {
 }
 
 const TIPOS_PRECIO = [
-  { value: 'LIVIANO', label: 'Precio liviano' },
+  { value: 'ECONOMICO', label: 'Precio económico' },
   { value: 'PESADO',  label: 'Precio pesado' },
 ]
 
@@ -45,7 +45,7 @@ function buildErrors(form, esHistorial, hayMedidas) {
   if (esHistorial) {
     if (!Number.isSafeInteger(Number(form.cantidad)) || Number(form.cantidad) <= 0) e.cantidad = 'Ingresa una cantidad entera mayor que cero'
   } else {
-    if (!form.tipo_precio) e.tipo_precio = 'Elige precio liviano o precio pesado'
+    if (!form.tipo_precio) e.tipo_precio = 'Elige precio económico o precio pesado'
     if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = 'Precio inválido'
     if (!form.condicion) e.condicion = 'Elige la condición'
     if (hayMedidas && !form.pulgadas) e.pulgadas = 'Elige la medida'
@@ -423,7 +423,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                           {formatCOP(p.precio_unitario)}
                           {p.tipo_precio && (
                             <span className="block text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
-                              {p.tipo_precio === 'PESADO' ? 'Pesado' : 'Liviano'}
+                              {p.tipo_precio === 'PESADO' ? 'Pesado' : 'Económico'}
                             </span>
                           )}
                         </td>
