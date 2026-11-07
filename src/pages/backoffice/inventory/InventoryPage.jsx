@@ -49,6 +49,35 @@ function buildErrors(form, esHistorial, hayMedidas) {
   }
   return e
 }
+// Medida en pulgadas → número: '1/2"' → 0.5, '1 1/2"' o '1-1/2"' → 1.5, '2"' → 2. NaN si no es un número.
+function pulgadaANumero(texto) {
+  const t = String(texto || '').replace(/["”'″]/g, '').replace(/pulg(adas)?/i, '').trim()
+  const m = t.match(/^(\d+(?:[.,]\d+)?)?(?:\s+|-)?(?:(\d+)\/(\d+))?$/)
+  if (!t || !m || (!m[1] && !m[2])) return NaN
+  return (m[1] ? Number(m[1].replace(',', '.')) : 0) + (m[2] ? Number(m[2]) / Number(m[3]) : 0)
+}
+
+// Clave para ordenar una medida: también entiende medidas compuestas como '6" x 4"' o
+// '1/2" - 3/4"' (compara la primera y luego la segunda). Sin medida → va al final.
+function clavePulgadas(medida) {
+  const partes = String(medida || '').split(/\s*[xX×]\s*|\s+-\s+/).map(pulgadaANumero)
+  return partes.length && partes.every(n => !Number.isNaN(n)) ? partes : [Infinity]
+}
+
+// Orden de la lista: alfabético por nombre y, dentro del mismo nombre, de menor a mayor medida.
+function compararProductos(a, b) {
+  const porNombre = (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base', numeric: true })
+  if (porNombre !== 0) return porNombre
+  const ka = clavePulgadas(a.pulgadas)
+  const kb = clavePulgadas(b.pulgadas)
+  for (let i = 0; i < Math.max(ka.length, kb.length); i++) {
+    const x = ka[i] ?? -1
+    const y = kb[i] ?? -1
+    if (x !== y) return x < y ? -1 : 1
+  }
+  return (a.pulgadas || '').localeCompare(b.pulgadas || '', 'es', { numeric: true })
+}
+
 // Quita tildes y pasa a minúsculas: "valvula" encuentra "Válvula de Bola".
 const normalizar = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
@@ -93,7 +122,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       const { data } = await productService.getAll({ search, tipoInventario })
       const filtered = data.filter(p => (!lineaFiltro || p.linea_servicio === lineaFiltro)
         && (!esHistorial || Number(p.stock_disponible) > 0))
-      setProducts(filtered)
+      setProducts([...filtered].sort(compararProductos))
     } catch {
       // mantiene la lista anterior si falla la red
     }
