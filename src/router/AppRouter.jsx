@@ -23,6 +23,7 @@ import ProfilePage       from '../pages/profile/ProfilePage'
 import DashboardPage     from '../pages/backoffice/dashboard/DashboardPage'
 import InventoryPage     from '../pages/backoffice/inventory/InventoryPage'
 import OrdersPage        from '../pages/backoffice/orders/OrdersPage'
+import HistoricosPage    from '../pages/backoffice/historicos/HistoricosPage'
 import NotificationsPage from '../pages/backoffice/notifications/NotificationsPage'
 import AsistenciaPage from '../pages/backoffice/asistencia/AsistenciaPage'
 import MiAsistenciaPage from '../pages/backoffice/asistencia/MiAsistenciaPage'
@@ -93,6 +94,7 @@ export default function AppRouter() {
           {/* key distinto: al cambiar de hoja React monta la página de cero (sin estado de la anterior) */}
           <Route path="bodega"        element={<RequireJefe><InventoryPage key="bodega" tipoInventario="BODEGA" titulo="Bodega" /></RequireJefe>} />
           <Route path="ordenes"       element={<OrdersPage />} />
+          <Route path="historicos"    element={<RequireJefe><HistoricosPage /></RequireJefe>} />
           <Route path="notificaciones" element={<RequireJefe><NotificationsPage /></RequireJefe>} />
           <Route path="asistencia"    element={<RequireJefe><AsistenciaPage /></RequireJefe>} />
           <Route path="mi-asistencia" element={<RequireEmpleado><MiAsistenciaPage /></RequireEmpleado>} />

@@ -23,7 +23,7 @@ const IMAGEN_LINEA = {
 const emptyForm = {
   linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
   descripcion: '', precio_unitario: '', stock_disponible: '', stock_minimo: '',
-  estado: 'ACTIVO', pulgadas: '', condicion: '', precio_pesado: '', tipo_inventario: 'INVENTARIO', cantidad: '',
+  estado: 'ACTIVO', pulgadas: '', condicion: '', precio_pesado: '', valor_adquisicion: '', tipo_inventario: 'INVENTARIO', cantidad: '',
 }
 
 // ── Funciones puras (fuera del componente para reducir complejidad cognitiva) ──
@@ -47,6 +47,7 @@ function buildErrors(form, esHistorial, hayMedidas) {
     const reman = form.condicion === 'REMANUFACTURADO'   // un solo precio, sin económico ni pesado
     if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = reman ? 'Ingresa el precio' : 'Ingresa el precio económico'
     if (!reman && (!form.precio_pesado || Number(form.precio_pesado) <= 0)) e.precio_pesado = 'Ingresa el precio pesado'
+    if (form.valor_adquisicion === '' || form.valor_adquisicion == null || Number(form.valor_adquisicion) < 0) e.valor_adquisicion = 'Ingresa el valor de adquisición'
     if (!form.condicion) e.condicion = 'Elige la condición'
     if (hayMedidas && !form.pulgadas) e.pulgadas = 'Elige la medida'
     if (form.stock_disponible === '' || !Number.isSafeInteger(Number(form.stock_disponible)) || Number(form.stock_disponible) < 0) e.stock_disponible = 'Ingresa un stock entero válido'
@@ -176,7 +177,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       linea_servicio: p.linea_servicio || '', nombre: p.nombre || '', imagen_url: p.imagen_url || '',
       categoria: p.categoria || 'OTRO', descripcion: p.descripcion || '', pulgadas: p.pulgadas || '',
       condicion: p.condicion || '', tipo_inventario: p.tipo_inventario || tipoInventario,
-      precio_unitario: String(p.precio_unitario), precio_pesado: p.precio_pesado != null ? String(p.precio_pesado) : '', stock_disponible: String(p.stock_disponible),
+      precio_unitario: String(p.precio_unitario), precio_pesado: p.precio_pesado != null ? String(p.precio_pesado) : '', valor_adquisicion: p.valor_adquisicion != null ? String(p.valor_adquisicion) : '', stock_disponible: String(p.stock_disponible),
       stock_minimo: String(p.stock_minimo), estado: p.estado || 'ACTIVO',
     })
     setErrors({})
@@ -245,6 +246,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         tipo_inventario: tipoInventario,
         precio_unitario:  Number(form.precio_unitario),
         precio_pesado:    form.condicion === 'REMANUFACTURADO' ? null : Number(form.precio_pesado),
+        valor_adquisicion: Number(form.valor_adquisicion),
         stock_disponible: Number(form.stock_disponible),
         stock_minimo:     Number(form.stock_minimo),
         linea_label:      linea?.label || '',
@@ -745,6 +747,21 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
                     style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.precio_pesado ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
                   {errors.precio_pesado && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_pesado}</p>}
+                </div>
+                )}
+{!esHistorial && (
+                <div>
+                  <label htmlFor="inv-adquisicion" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
+                    Valor de adquisición (COP) <span className="text-red-500">*</span>
+                  </label>
+                  <input id="inv-adquisicion" type="number" min="0" placeholder="30000"
+                    value={form.valor_adquisicion}
+                    onChange={e => { setForm(f => ({ ...f, valor_adquisicion: e.target.value })); setErrors(er => ({ ...er, valor_adquisicion: '' })) }}
+                    className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
+                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.valor_adquisicion ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
+                  {errors.valor_adquisicion
+                    ? <p className="mt-0.5 text-[10px] text-red-500">{errors.valor_adquisicion}</p>
+                    : <p className="mt-0.5 text-[10px]" style={{ color: 'var(--tx-3)' }}>Lo que costó cada unidad. Se usa en Históricos para la ganancia.</p>}
                 </div>
                 )}
 

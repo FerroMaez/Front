@@ -17,15 +17,19 @@ const mapOrder = (o) => ({
   pdf_url: o.pdfUrl,
   xml_url: o.xmlUrl,
   error_facturacion: o.errorFacturacion,
+  cliente_id: o.clienteId ?? null,
   cliente: o.clienteInfo ? {
-    nombre:   o.clienteInfo.nombre,
-    telefono: o.clienteInfo.telefono,
-    email:    o.clienteInfo.email,
+    nombre:    o.clienteInfo.nombre,
+    telefono:  o.clienteInfo.telefono,
+    email:     o.clienteInfo.email,
+    cedula:    o.clienteInfo.cedula,
+    direccion: o.clienteInfo.direccion,
   } : null,
   items: (o.items || []).map(i => ({
     id: i.id,
     producto_id: i.productoId,
     nombre: i.nombreProducto,
+    pulgadas: i.pulgadas || '',
     cantidad: i.cantidad,
     precio_unitario_momento: Number(i.precioUnitario) || 0,
     tipo_precio: i.tipoPrecio || null,
@@ -46,8 +50,9 @@ export const orderService = {
     return api.get('/ordenes/mis-ordenes').then(r => r.data.map(mapOrder))
   },
 
-  getAll: async () => {
-    return api.get('/ordenes').then(r => r.data.map(mapOrder))
+  /** Con `productoId`: historial de ese producto (las órdenes que lo incluyen). */
+  getAll: async ({ productoId } = {}) => {
+    return api.get('/ordenes', { params: { productoId: productoId || undefined } }).then(r => r.data.map(mapOrder))
   },
 
   updateStatus: async (id, { estado, motivo_cancelacion }) => {

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   FaPhone, FaEnvelope, FaTimesCircle, FaSpinner, FaChevronDown,
-  FaReceipt, FaDownload, FaPlus, FaExternalLinkAlt, FaSearch,
+  FaReceipt, FaDownload, FaPlus, FaExternalLinkAlt, FaSearch, FaIdCard, FaMapMarkerAlt, FaUserCheck,
 } from 'react-icons/fa'
 import { orderService } from '../../../services/api/orderService'
 import { productService } from '../../../services/api/productService'
+import { clienteService } from '../../../services/api/clienteService'
 import { formatCOP, formatDate, formatDateTime } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
 import { websocketService } from '../../../services/api/websocketService'
@@ -13,6 +14,8 @@ import VentasOfflinePanel from './VentasOfflinePanel'
 import { useOfflineStore } from '../../../store/offlineStore'
 
 const CACHE_PRODUCTOS = 'manhid-productos-venta'
+const CLIENTE_VACIO = { nombre: '', cedula: '', telefono: '', email: '', direccion: '' }
+const etiquetaProducto = (p) => `${p.nombre}${p.pulgadas ? ` ${p.pulgadas}` : ''}`
 
 const STATES  = ['PENDIENTE', 'EN_PROCESO', 'VENTA_EXITOSA', 'CANCELADA']
 const MOTIVOS = ['Cliente no contestó', 'Cliente desistió de la compra', 'Producto no disponible a precios acordados', 'Error de cotización', 'Otro']
@@ -43,7 +46,12 @@ export default function OrdersPage() {
   const [productos,       setProductos]       = useState([])
   const [cantidades,      setCantidades]      = useState({})
   const [tiposPrecio,     setTiposPrecio]     = useState({})   // { [productoId]: 'ECONOMICO' | 'PESADO' }
-  const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', email: '' })
+  const [vfCliente,       setVfCliente]       = useState(CLIENTE_VACIO)
+  const [vfClienteId,     setVfClienteId]     = useState(null)    // cliente guardado elegido
+  const [vfBuscaCliente,  setVfBuscaCliente]  = useState('')
+  const [vfSugerencias,   setVfSugerencias]   = useState([])
+  const [productoFiltro,  setProductoFiltro]  = useState('')      // historial por producto
+  const [productosFiltro, setProductosFiltro] = useState([])
   const [vfDescripcion,   setVfDescripcion]   = useState('')
   const [vfPagado,        setVfPagado]        = useState('')
   const [vfBusqueda,      setVfBusqueda]      = useState('')
@@ -51,8 +59,27 @@ export default function OrdersPage() {
   const [loadingVF,       setLoadingVF]       = useState(false)
   const [exportLoading,   setExportLoading]   = useState(false)
 
-  const load = useCallback(() => orderService.getAll().then(setOrders).catch(() => {}), [])
+  const load = useCallback(
+    () => orderService.getAll({ productoId: productoFiltro }).then(setOrders).catch(() => {}),
+    [productoFiltro])
   useEffect(() => { load() }, [load])
+
+  // Productos para el filtro de historial (todos los de Inventario, por nombre y medida)
+  useEffect(() => {
+    productService.getAll({ tipoInventario: 'INVENTARIO' })
+      .then(r => setProductosFiltro([...r.data].sort((a, b) =>
+        etiquetaProducto(a).localeCompare(etiquetaProducto(b), 'es', { numeric: true, sensitivity: 'base' }))))
+      .catch(() => {})
+  }, [])
+
+  // Clientes guardados: sugerencias mientras se escribe (o los más recientes al abrir el paso 2)
+  useEffect(() => {
+    if (!vfOpen || vfPaso !== 2) return
+    const t = setTimeout(() => {
+      clienteService.buscar(vfBuscaCliente.trim()).then(setVfSugerencias).catch(() => setVfSugerencias([]))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [vfBuscaCliente, vfOpen, vfPaso])
 
   // Tiempo real: recarga al instante cuando llega una orden nueva via WebSocket.
   // Respaldo: refresca cada 20 s por si el WebSocket no conecta.
@@ -69,7 +96,9 @@ export default function OrdersPage() {
     setVfPaso(1)
     setCantidades({})
     setTiposPrecio({})
-    setVfCliente({ nombre: '', telefono: '', email: '' })
+    setVfCliente(CLIENTE_VACIO)
+    setVfClienteId(null)
+    setVfBuscaCliente('')
     setVfDescripcion('')
     setVfPagado('')
     setVfBusqueda('')
@@ -159,10 +188,18 @@ export default function OrdersPage() {
   }
 
   const setCliente = (k) => (e) => setVfCliente(p => ({ ...p, [k]: e.target.value }))
+  const elegirCliente = (c) => {
+    setVfCliente({ nombre: c.nombre, cedula: c.cedula, telefono: c.telefono, email: c.email, direccion: c.direccion })
+    setVfClienteId(c.id)
+    setVfBuscaCliente('')
+    setVfErrors(er => ({ ...er, nombre: '', email: '' }))
+  }
+  const quitarCliente = () => { setVfCliente(CLIENTE_VACIO); setVfClienteId(null) }
 
   const validarCliente = () => {
     const e = {}
     if (!vfCliente.nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    if (vfCliente.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vfCliente.email.trim())) e.email = 'Correo no válido'
     if (vfPagado === '' || Number(vfPagado) <= 0) e.pagado = 'Ingresa cuánto pagó el cliente'
     setVfErrors(e)
     return Object.keys(e).length === 0
@@ -173,9 +210,12 @@ export default function OrdersPage() {
     setLoadingVF(true)
     try {
       const cliente = {
-        nombre: vfCliente.nombre,
-        telefono: vfCliente.telefono || null,
-        email: vfCliente.email || null,
+        nombre: vfCliente.nombre.trim(),
+        cedula: vfCliente.cedula.trim() || null,
+        telefono: vfCliente.telefono.trim() || null,
+        email: vfCliente.email.trim() || null,
+        direccion: vfCliente.direccion.trim() || null,
+        clienteId: vfClienteId,
       }
       const clave = nuevaClave()
       const totalPagado = Number(vfPagado)
@@ -264,11 +304,48 @@ export default function OrdersPage() {
         })}
       </div>
 
+      {/* Historial por producto */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <label htmlFor="filtro-producto" className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tx-3)' }}>
+          Producto
+        </label>
+        <select id="filtro-producto" value={productoFiltro} onChange={e => { setProductoFiltro(e.target.value); setFilter('all'); setExpandedId(null) }}
+          className="flex-1 min-w-0 sm:flex-none sm:w-96 px-3 py-2 rounded-xl text-sm outline-none"
+          style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${productoFiltro ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+          <option value="">Todos los productos</option>
+          {productosFiltro.map(p => (
+            <option key={p.id} value={p.id}>{etiquetaProducto(p)}{p.estado !== 'ACTIVO' ? ' (inactivo)' : ''}</option>
+          ))}
+        </select>
+        {productoFiltro && (
+          <button onClick={() => setProductoFiltro('')} className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+            Quitar filtro
+          </button>
+        )}
+      </div>
+      {productoFiltro && (() => {
+        const id = Number(productoFiltro)
+        const vendidas = orders.filter(o => o.estado === 'VENTA_EXITOSA')
+        const lineas = vendidas.flatMap(o => o.items.filter(i => i.producto_id === id))
+        const unidades = lineas.reduce((s, i) => s + i.cantidad, 0)
+        const valor = lineas.reduce((s, i) => s + i.precio_unitario_momento * i.cantidad, 0)
+        const p = productosFiltro.find(x => x.id === id)
+        return (
+          <div className="mb-4 p-3 rounded-xl text-sm flex flex-wrap gap-x-6 gap-y-1"
+            style={{ backgroundColor: 'rgba(140,144,59,0.08)', border: '1px solid rgba(140,144,59,0.2)', color: 'var(--tx-2)' }}>
+            <span>Historial de <strong style={{ color: 'var(--tx-1)' }}>{p ? etiquetaProducto(p) : 'producto'}</strong></span>
+            <span><strong style={{ color: 'var(--tx-1)' }}>{orders.length}</strong> orden(es)</span>
+            <span><strong style={{ color: 'var(--tx-1)' }}>{unidades}</strong> und. vendidas en {vendidas.length} venta(s) exitosa(s)</span>
+            <span>Valor de productos: <strong className="text-brand-600 dark:text-brand-300">{formatCOP(valor)}</strong></span>
+          </div>
+        )
+      })()}
+
       {/* Lista */}
       <div className="space-y-3">
         {filtered.length === 0 && (
           <div className="text-center py-16 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-            <p style={{ color: 'var(--tx-3)' }}>No hay órdenes en este estado.</p>
+            <p style={{ color: 'var(--tx-3)' }}>{productoFiltro ? 'Este producto no tiene órdenes en este estado.' : 'No hay órdenes en este estado.'}</p>
           </div>
         )}
         {filtered.map(order => {
@@ -332,7 +409,7 @@ export default function OrdersPage() {
                         {order.items?.map(item => (
                           <div key={item.producto_id} className="flex justify-between text-xs p-2.5 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
                             <span style={{ color: 'var(--tx-1)' }}>
-                              {item.nombre} <span style={{ color: 'var(--tx-3)' }}>×{item.cantidad}</span>
+                              <span className={productoFiltro && item.producto_id === Number(productoFiltro) ? 'font-bold' : undefined}>{item.nombre}{item.pulgadas ? ` ${item.pulgadas}` : ''}</span> <span style={{ color: 'var(--tx-3)' }}>×{item.cantidad}</span>
                               {item.tipo_precio && (
                                 <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
                                   · {item.tipo_precio === 'PESADO' ? 'Pesado' : 'Económico'}
@@ -362,6 +439,8 @@ export default function OrdersPage() {
                         <p className="font-semibold" style={{ color: 'var(--tx-1)' }}>{order.cliente?.nombre}</p>
                         <p className="flex items-center gap-2"><FaPhone size={10} className="text-brand-500"/> {order.cliente?.telefono}</p>
                         <p className="flex items-center gap-2"><FaEnvelope size={10} className="text-brand-500"/> {order.cliente?.email}</p>
+                        {order.cliente?.cedula && <p className="flex items-center gap-2"><FaIdCard size={10} className="text-brand-500"/> {order.cliente.cedula}</p>}
+                        {order.cliente?.direccion && <p className="flex items-center gap-2"><FaMapMarkerAlt size={10} className="text-brand-500"/> {order.cliente.direccion}</p>}
                       </div>
                       {order.es_venta_fisica && order.descripcion && (
                         <div className="mt-3 p-2.5 rounded-xl text-xs" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-2)' }}>
@@ -628,9 +707,48 @@ export default function OrdersPage() {
         </div>
 
         <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--tx-3)' }}>Datos del cliente</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1 mb-4">
-          {[['nombre', 'Nombre completo', 'Nombre del cliente', 'text'], ['telefono', 'Teléfono (opcional)', '310 000 0000', 'tel'], ['email', 'Email (opcional)', 'cliente@email.com', 'email']].map(([key, label, placeholder, type]) => (
-            <div key={key}>
+        {vfClienteId ? (
+          <div className="mb-3 p-2.5 rounded-xl flex items-center justify-between gap-3 text-xs"
+            style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: 'var(--tx-2)' }}>
+            <span className="flex items-center gap-2"><FaUserCheck className="text-green-600" size={12} />
+              Cliente guardado. Si cambias algún dato, se actualiza para las próximas ventas.</span>
+            <button type="button" onClick={quitarCliente} className="font-semibold text-brand-600 dark:text-brand-400 hover:underline whitespace-nowrap">
+              Otro cliente
+            </button>
+          </div>
+        ) : (
+          <div className="relative mb-3">
+            <FaSearch className="absolute left-3 top-[1.15rem] -translate-y-1/2" size={12} style={{ color: 'var(--tx-3)' }} />
+            <input type="search" value={vfBuscaCliente} onChange={e => setVfBuscaCliente(e.target.value)}
+              placeholder="Buscar cliente guardado por nombre, cédula o teléfono…" aria-label="Buscar cliente guardado"
+              className="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+            {vfSugerencias.length > 0 && (
+              <ul role="listbox" aria-label="Clientes guardados" className="mt-1.5 max-h-40 overflow-y-auto rounded-xl divide-y"
+                style={{ border: '1px solid var(--bd-1)', backgroundColor: 'var(--bg-surface)', borderColor: 'var(--bd-1)' }}>
+                {vfSugerencias.map(c => (
+                  <li key={c.id}>
+                    <button type="button" role="option" aria-selected="false" onClick={() => elegirCliente(c)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-brand-500/10 transition-colors">
+                      <span className="font-semibold" style={{ color: 'var(--tx-1)' }}>{c.nombre}</span>
+                      <span className="ml-2" style={{ color: 'var(--tx-3)' }}>
+                        {[c.cedula && `C.C. ${c.cedula}`, c.telefono, c.email].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {vfBuscaCliente.trim() && vfSugerencias.length === 0 && (
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--tx-3)' }}>No hay clientes guardados con ese dato. Llena los campos y se guardará con la venta.</p>
+            )}
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1 mb-4">
+          {[['nombre', 'Nombre completo *', 'Nombre del cliente', 'text'], ['cedula', 'Cédula (opcional)', '1020304050', 'text'],
+            ['telefono', 'Teléfono (opcional)', '310 000 0000', 'tel'], ['email', 'Correo (opcional)', 'cliente@email.com', 'email'],
+            ['direccion', 'Dirección (opcional)', 'Calle 10 # 20-30', 'text']].map(([key, label, placeholder, type]) => (
+            <div key={key} className={key === 'direccion' ? 'sm:col-span-2' : undefined}>
               <label htmlFor={'vf-' + key} className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>{label}</label>
               <input id={'vf-' + key} type={type} placeholder={placeholder} value={vfCliente[key]} onChange={setCliente(key)}
                 className="w-full px-3 py-2 rounded-xl text-sm outline-none"
