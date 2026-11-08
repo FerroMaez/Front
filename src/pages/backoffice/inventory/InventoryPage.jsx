@@ -33,6 +33,10 @@ function subcatsForLinea(lineaValue) {
   return catalogProducts.find(cp => cp.slug === linea.slug)?.subcategorias ?? []
 }
 
+// En Bodega y Arreglos la condición la fija la línea: Redes Hidráulicas = remanufacturado, el resto = nuevo.
+const condicionPorLinea = (linea) => (linea === 'HIDRAULICA' ? 'REMANUFACTURADO' : 'NUEVO')
+const etiquetaCondicion = (condicion) => (condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo')
+
 function buildErrors(form, esHistorial, hayMedidas) {
   const e = {}
   if (!form.linea_servicio) e.linea_servicio = 'Selecciona la línea de servicio'
@@ -212,7 +216,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         const payloadArreglo = {
           ...form,
           tipo_inventario: tipoInventario,
-          condicion: 'REMANUFACTURADO',
+          condicion: condicionPorLinea(form.linea_servicio),
           precio_unitario: 0,
           stock_disponible: cantidad,
           stock_minimo: 0,
@@ -224,7 +228,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           && p.nombre === payloadArreglo.nombre
           && p.linea_servicio === payloadArreglo.linea_servicio
           && (p.pulgadas || '') === (payloadArreglo.pulgadas || '')
-          && p.condicion === 'REMANUFACTURADO')
+          && p.condicion === payloadArreglo.condicion)
         if (existente) {
           await productService.addStock(existente.id, cantidad)
           showToast(`${titulo}: se sumaron ${cantidad} unidades a ${existente.nombre}.`)
@@ -425,7 +429,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                       )}
                     </td>
                     <td className="px-4 py-3">{p.pulgadas || '—'}</td>
-                    <td className="px-4 py-3">{esHistorial ? 'Manufacturado' : (p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo')}</td>
+                    <td className="px-4 py-3">{etiquetaCondicion(p.condicion)}</td>
                     {esHistorial ? (
                       <>
                         <td className="px-4 py-3 font-semibold">{p.stock_disponible}</td>
@@ -687,7 +691,9 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 {esHistorial ? (
                   <div className="flex flex-col justify-center">
                     <span className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Condición</span>
-                    <span className="text-sm" style={{ color: 'var(--tx-1)' }}>Manufacturado</span>
+                    <span className="text-sm" style={{ color: 'var(--tx-1)' }}>
+                      {form.linea_servicio ? etiquetaCondicion(condicionPorLinea(form.linea_servicio)) : '—'}
+                    </span>
                   </div>
                 ) : (
                 <div>
