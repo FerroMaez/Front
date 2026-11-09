@@ -24,6 +24,8 @@ import DashboardPage     from '../pages/backoffice/dashboard/DashboardPage'
 import InventoryPage     from '../pages/backoffice/inventory/InventoryPage'
 import OrdersPage        from '../pages/backoffice/orders/OrdersPage'
 import HistoricosPage    from '../pages/backoffice/historicos/HistoricosPage'
+import ClientesPage      from '../pages/backoffice/clientes/ClientesPage'
+import DeudoresPage      from '../pages/backoffice/deudores/DeudoresPage'
 import NotificationsPage from '../pages/backoffice/notifications/NotificationsPage'
 import AsistenciaPage from '../pages/backoffice/asistencia/AsistenciaPage'
 import MiAsistenciaPage from '../pages/backoffice/asistencia/MiAsistenciaPage'
@@ -95,6 +97,8 @@ export default function AppRouter() {
           <Route path="bodega"        element={<RequireJefe><InventoryPage key="bodega" tipoInventario="BODEGA" titulo="Bodega" /></RequireJefe>} />
           <Route path="ordenes"       element={<OrdersPage />} />
           <Route path="historicos"    element={<RequireJefe><HistoricosPage /></RequireJefe>} />
+          <Route path="clientes"      element={<RequireJefe><ClientesPage /></RequireJefe>} />
+          <Route path="deudores"      element={<RequireJefe><DeudoresPage /></RequireJefe>} />
           <Route path="notificaciones" element={<RequireJefe><NotificationsPage /></RequireJefe>} />
           <Route path="asistencia"    element={<RequireJefe><AsistenciaPage /></RequireJefe>} />
           <Route path="mi-asistencia" element={<RequireEmpleado><MiAsistenciaPage /></RequireEmpleado>} />

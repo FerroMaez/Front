@@ -499,7 +499,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       <Modal isOpen={modal === 'create' || modal === 'edit'}
         onClose={() => setModal(null)}
         title={esHistorial ? `Agregar producto a ${titulo}` : (modal === 'create' ? 'Agregar producto al Inventario' : selected ? 'Editar: ' + selected.nombre : 'Editar producto')}
-        size="lg">
+        size="xl">
         <div className="space-y-6">
 
           {/* ── PASO 1: Línea de servicio ── */}

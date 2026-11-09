@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaWarehouse, FaUserClock, FaChartLine } from 'react-icons/fa'
+import { FaTachometerAlt, FaBoxes, FaTools, FaClipboardList, FaBell, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaWarehouse, FaUserClock, FaChartLine, FaAddressBook, FaHandHoldingUsd } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -96,6 +96,8 @@ export default function BackofficeLayout() {
     { to: '/backoffice/arreglos',      label: 'Arreglos',   icon: <FaTools size={15}/>, soloJefe: true },
     { to: '/backoffice/bodega',        label: 'Bodega',     icon: <FaWarehouse size={15}/>, soloJefe: true },
     { to: '/backoffice/ordenes',       label: 'Órdenes',    icon: <FaClipboardList size={15}/> },
+    { to: '/backoffice/clientes',      label: 'Clientes',   icon: <FaAddressBook size={15}/>, soloJefe: true },
+    { to: '/backoffice/deudores',      label: 'Deudores',   icon: <FaHandHoldingUsd size={15}/>, soloJefe: true },
     { to: '/backoffice/historicos',    label: 'Históricos', icon: <FaChartLine size={15}/>, soloJefe: true },
     { to: '/backoffice/asistencia',    label: 'Asistencia', icon: <FaUserClock size={15}/>, soloJefe: true },
     { to: '/backoffice/mi-asistencia', label: 'Mi asistencia', icon: <FaUserClock size={15}/>, soloEmpleado: true },
