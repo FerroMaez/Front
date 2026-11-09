@@ -6,7 +6,7 @@ import {
 import { orderService } from '../../../services/api/orderService'
 import { productService } from '../../../services/api/productService'
 import { clienteService } from '../../../services/api/clienteService'
-import { cajeroService } from '../../../services/api/deudaService'
+import { cajeroService, deudaService } from '../../../services/api/deudaService'
 import { formatCOP, formatDate, formatDateTime } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
 import { websocketService } from '../../../services/api/websocketService'
@@ -62,14 +62,16 @@ export default function OrdersPage() {
   const [vfDebe,          setVfDebe]          = useState(false)
   const [vfMontoDebe,     setVfMontoDebe]     = useState('')
   const [cajeros,         setCajeros]         = useState([])
+  const [deudas,          setDeudas]          = useState(null)    // órdenes con saldo pendiente (null: sin permiso)
   const [vfBusqueda,      setVfBusqueda]      = useState('')
   const [vfErrors,        setVfErrors]        = useState({})
   const [loadingVF,       setLoadingVF]       = useState(false)
   const [exportLoading,   setExportLoading]   = useState(false)
 
-  const load = useCallback(
-    () => orderService.getAll({ productoId: productoFiltro }).then(setOrders).catch(() => {}),
-    [productoFiltro])
+  const load = useCallback(() => {
+    deudaService.listar().then(setDeudas).catch(() => setDeudas(d => d ?? null))
+    return orderService.getAll({ productoId: productoFiltro }).then(setOrders).catch(() => {})
+  }, [productoFiltro])
   useEffect(() => { load() }, [load])
 
   // Productos para el filtro de historial (todos los de Inventario, por nombre y medida)
@@ -130,7 +132,8 @@ export default function OrdersPage() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
 
-  const filtered = filter === 'all' ? orders : orders.filter(o => o.estado === filter)
+  const deben = (deudas || []).filter(o => !productoFiltro || o.items.some(i => i.producto_id === Number(productoFiltro)))
+  const filtered = filter === 'deben' ? deben : filter === 'all' ? orders : orders.filter(o => o.estado === filter)
 
   const setQty = (id, qty) => setCantidades(prev => {
     if (qty <= 0) { const next = { ...prev }; delete next[id]; return next }
@@ -315,7 +318,7 @@ export default function OrdersPage() {
           style={{ color: filter === 'all' ? undefined : 'var(--tx-2)', border: '1px solid var(--bd-1)' }}>
           Todas ({orders.length})
         </button>
-        {STATES.map(s => {
+        {['VENTA_EXITOSA'].map(s => {
           const cfg = STATE_CONFIG[s]
           return (
             <button key={s} onClick={() => setFilter(s)}
@@ -325,6 +328,13 @@ export default function OrdersPage() {
             </button>
           )
         })}
+        {deudas && (
+          <button onClick={() => setFilter('deben')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${filter === 'deben' ? 'bg-red-500/10 border-red-500/25 text-red-500' : ''}`}
+            style={{ color: filter === 'deben' ? undefined : 'var(--tx-2)', borderColor: filter === 'deben' ? undefined : 'var(--bd-1)' }}>
+            Deben ({deben.length})
+          </button>
+        )}
       </div>
 
       {/* Historial por producto */}
@@ -368,7 +378,7 @@ export default function OrdersPage() {
       <div className="space-y-3">
         {filtered.length === 0 && (
           <div className="text-center py-16 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-            <p style={{ color: 'var(--tx-3)' }}>{productoFiltro ? 'Este producto no tiene órdenes en este estado.' : 'No hay órdenes en este estado.'}</p>
+            <p style={{ color: 'var(--tx-3)' }}>{filter === 'deben' ? 'Nadie debe nada.' : productoFiltro ? 'Este producto no tiene órdenes en este estado.' : 'No hay órdenes en este estado.'}</p>
           </div>
         )}
         {filtered.map(order => {

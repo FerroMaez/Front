@@ -118,6 +118,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   const [products,    setProducts]    = useState([])
   const [search,      setSearch]      = useState('')
   const [lineaFiltro, setLineaFiltro] = useState('')
+  const [medidaFiltro, setMedidaFiltro] = useState('')
+  const [condicionFiltro, setCondicionFiltro] = useState('')
   const [modal,       setModal]       = useState(null)   // null | 'create' | 'edit'
   const [selected, setSelected] = useState(null)
   const [editOptions, setEditOptions] = useState([])
@@ -328,6 +330,20 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
   const currentSubcats = subcatsForLinea(form.linea_servicio)
   // Con texto en el buscador se busca en todas las líneas; sin texto, solo la línea elegida.
+  // Filtros de la tabla: medida y condición sobre lo ya filtrado por línea y búsqueda
+  const medidasDisponibles = [...new Set(products.map(p => p.pulgadas || ''))]
+    .sort((a, b) => {
+      const ka = clavePulgadas(a), kb = clavePulgadas(b)
+      for (let k = 0; k < Math.max(ka.length, kb.length); k++) {
+        const d = (ka[k] ?? -1) - (kb[k] ?? -1)
+        if (d) return d
+      }
+      return a.localeCompare(b)
+    })
+  const visibles = products.filter(p => (!medidaFiltro || (medidaFiltro === '__sin' ? !p.pulgadas : p.pulgadas === medidaFiltro))
+    && (!condicionFiltro || p.condicion === condicionFiltro))
+  const hayFiltros = lineaFiltro || medidaFiltro || condicionFiltro || search
+
   const textoBusqueda = normalizar(busqueda)
   const subcatsVisibles = textoBusqueda
     ? TODOS_LOS_SUBCATS.filter(s => normalizar(s.nombre).includes(textoBusqueda))
@@ -357,7 +373,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>{titulo}</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{products.length} {products.length === 1 ? 'producto' : 'productos'} {esHistorial ? 'en el historial' : (products.length === 1 ? 'registrado' : 'registrados')}</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{visibles.length} {visibles.length === 1 ? 'producto' : 'productos'} {esHistorial ? 'en el historial' : (visibles.length === 1 ? 'registrado' : 'registrados')}{visibles.length !== products.length ? ` de ${products.length}` : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           {!esHistorial && <button onClick={openEdit} disabled={loading} className="btn-outline text-sm gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -383,6 +399,25 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           <option value="">Todas las líneas</option>
           {LINEAS_SERVICIO.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
         </select>
+        <select value={medidaFiltro} onChange={e => setMedidaFiltro(e.target.value)} aria-label="Filtrar por medida"
+          className="px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+          style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${medidaFiltro ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+          <option value="">Todas las medidas</option>
+          {medidasDisponibles.map(m => <option key={m || '__sin'} value={m || '__sin'}>{m || 'Sin medida'}</option>)}
+        </select>
+        <select value={condicionFiltro} onChange={e => setCondicionFiltro(e.target.value)} aria-label="Filtrar por condición"
+          className="px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+          style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${condicionFiltro ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+          <option value="">Nuevo y remanufacturado</option>
+          <option value="NUEVO">Nuevo</option>
+          <option value="REMANUFACTURADO">Remanufacturado</option>
+        </select>
+        {hayFiltros && (
+          <button onClick={() => { setLineaFiltro(''); setMedidaFiltro(''); setCondicionFiltro(''); setSearch('') }}
+            className="px-3 py-2.5 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+            Quitar filtros
+          </button>
+        )}
       </div>
 
       {/* Tabla */}
@@ -397,14 +432,14 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
               </tr>
             </thead>
             <tbody>
-              {products.length === 0 && (
+              {visibles.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
                     No hay productos registrados aún. Haz clic en <strong>&quot;Agregar producto&quot;</strong> para comenzar.
                   </td>
                 </tr>
               )}
-              {products.map((p) => {
+              {visibles.map((p) => {
                 const linea = LINEAS_SERVICIO.find(l => l.value === (p.linea_servicio || p.categoria))
                 return (
                   <tr key={p.id}>
