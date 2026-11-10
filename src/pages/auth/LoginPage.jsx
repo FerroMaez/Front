@@ -32,8 +32,8 @@ export default function LoginPage() {
   }
 
   // Común a contraseña y Google: guardar sesión y llevar a cada rol a su página
-  const entrar = ({ accessToken, usuario }) => {
-    login(usuario, accessToken)
+  const entrar = ({ accessToken, refreshToken, usuario }) => {
+    login(usuario, accessToken, refreshToken)
     let dest = '/perfil'
     if (usuario.rol === 'JEFE') dest = '/backoffice'
     else if (usuario.rol === 'EMPLEADO') dest = '/backoffice/ordenes'

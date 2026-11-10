@@ -1,3 +1,4 @@
+import { renovarSiHaceFalta } from './sesion'
 import { Client } from '@stomp/stompjs'
 
 // WebSocket NATIVO (wss). Antes usábamos SockJS, que fallaba cross-origin en el
@@ -55,6 +56,11 @@ export const websocketService = {
       brokerURL: WS_URL,
       // El backend exige JWT en el CONNECT (StompAuthChannelInterceptor).
       connectHeaders: { Authorization: `Bearer ${localStorage.getItem('manhid-token') || ''}` },
+      // Cada reconexión envía el token vigente (el de acceso dura pocos minutos y se renueva)
+      beforeConnect: async () => {
+        const token = await renovarSiHaceFalta()
+        stompClient.connectHeaders = { Authorization: `Bearer ${token || ''}` }
+      },
       reconnectDelay: 5000,
       onConnect: () => {
         lastStatus = 'connected'

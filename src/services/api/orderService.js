@@ -1,7 +1,7 @@
 import api from './axiosInstance'
 import { whatsappService } from './whatsappService'
 
-const mapOrder = (o) => ({
+export const mapOrder = (o) => ({
   id: o.id,
   estado: o.estado,
   total_cotizacion: Number(o.totalCotizacion) || 0,
@@ -17,15 +17,27 @@ const mapOrder = (o) => ({
   pdf_url: o.pdfUrl,
   xml_url: o.xmlUrl,
   error_facturacion: o.errorFacturacion,
+  cliente_id: o.clienteId ?? null,
+  metodo_pago: o.metodoPago || null,
+  recibido_por: o.recibidoPor || null,
+  monto_deuda: Number(o.montoDeuda) || 0,
+  saldo_deuda: Number(o.saldoDeuda) || 0,
+  abonos: (o.abonos || []).map(a => ({
+    id: a.id, monto: Number(a.monto) || 0, metodo_pago: a.metodoPago, recibido_por: a.recibidoPor, fecha: a.fecha,
+  })),
   cliente: o.clienteInfo ? {
-    nombre:   o.clienteInfo.nombre,
-    telefono: o.clienteInfo.telefono,
-    email:    o.clienteInfo.email,
+    nombre:    o.clienteInfo.nombre,
+    telefono:  o.clienteInfo.telefono,
+    email:     o.clienteInfo.email,
+    cedula:    o.clienteInfo.cedula,
+    direccion: o.clienteInfo.direccion,
+    nit:       o.clienteInfo.nit,
   } : null,
   items: (o.items || []).map(i => ({
     id: i.id,
     producto_id: i.productoId,
     nombre: i.nombreProducto,
+    pulgadas: i.pulgadas || '',
     cantidad: i.cantidad,
     precio_unitario_momento: Number(i.precioUnitario) || 0,
     tipo_precio: i.tipoPrecio || null,
@@ -46,8 +58,9 @@ export const orderService = {
     return api.get('/ordenes/mis-ordenes').then(r => r.data.map(mapOrder))
   },
 
-  getAll: async () => {
-    return api.get('/ordenes').then(r => r.data.map(mapOrder))
+  /** Con `productoId`: historial de ese producto (las órdenes que lo incluyen). */
+  getAll: async ({ productoId } = {}) => {
+    return api.get('/ordenes', { params: { productoId: productoId || undefined } }).then(r => r.data.map(mapOrder))
   },
 
   updateStatus: async (id, { estado, motivo_cancelacion }) => {
@@ -63,12 +76,16 @@ export const orderService = {
 
   // `clave`: UUID de la venta. Si la respuesta se pierde y se reintenta (o la venta pasa a la
   // cola offline con esa misma clave), el backend NO la registra dos veces.
-  ventaFisica: async (items, cliente, descripcion, clave, totalPagado) => {
+  // `pago`: { totalPagado, metodoPago, recibidoPor, montoDeuda }
+  ventaFisica: async (items, cliente, descripcion, clave, pago = {}) => {
     return api.post('/ordenes/venta-fisica', {
       items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio || 'ECONOMICO' })),
       cliente,
       descripcion,
-      totalPagado,
+      totalPagado: pago.totalPagado,
+      metodoPago: pago.metodoPago,
+      recibidoPor: pago.recibidoPor,
+      montoDeuda: pago.montoDeuda,
     }, { headers: clave ? { 'Idempotency-Key': clave } : {} }).then(r => mapOrder(r.data))
   },
 

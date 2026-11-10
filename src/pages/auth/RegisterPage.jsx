@@ -116,8 +116,8 @@ export default function RegisterPage() {
         codigoMunicipioDane: form.codigoMunicipioDane,
         direccion: form.direccion,
       }
-      const { accessToken, usuario } = await authService.register(payload)
-      login(usuario, accessToken)
+      const { accessToken, refreshToken, usuario } = await authService.register(payload)
+      login(usuario, accessToken, refreshToken)
       navigate('/', { replace: true })
     } catch (err) {
       setApiErr(err?.response?.data?.message || err?.response?.data?.error || 'Error al registrarse.')
