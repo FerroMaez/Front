@@ -2,36 +2,36 @@ import api from './axiosInstance'
 
 export const authService = {
   login: async ({ email, password }) => {
-    const { accessToken } = await api.post('/auth/login', { email, password }).then(r => r.data)
+    const { accessToken, refreshToken } = await api.post('/auth/login', { email, password }).then(r => r.data)
     const usuario = await api.get('/usuarios/perfil', {
       headers: { Authorization: `Bearer ${accessToken}` },
     }).then(r => r.data)
-    return { accessToken, usuario }
+    return { accessToken, refreshToken, usuario }
   },
 
   // credential = ID token que entrega el botón de Google; el backend lo verifica con Google
   loginGoogle: async (credential) => {
-    const { accessToken } = await api.post('/auth/google', { credential }).then(r => r.data)
+    const { accessToken, refreshToken } = await api.post('/auth/google', { credential }).then(r => r.data)
     const usuario = await api.get('/usuarios/perfil', {
       headers: { Authorization: `Bearer ${accessToken}` },
     }).then(r => r.data)
-    return { accessToken, usuario }
+    return { accessToken, refreshToken, usuario }
   },
 
   register: async (payload) => {
     await api.post('/auth/registro', payload)
-    const { accessToken } = await api.post('/auth/login', {
+    const { accessToken, refreshToken } = await api.post('/auth/login', {
       email: payload.email,
       password: payload.password,
     }).then(r => r.data)
     const usuario = await api.get('/usuarios/perfil', {
       headers: { Authorization: `Bearer ${accessToken}` },
     }).then(r => r.data)
-    return { accessToken, usuario }
+    return { accessToken, refreshToken, usuario }
   },
 
   logout: async () => {
-    return api.post('/auth/logout').catch(() => {})
+    return api.post('/auth/logout', { refreshToken: localStorage.getItem('manhid-refresh') }).catch(() => {})
   },
 
   updateProfile: async (data) => {
