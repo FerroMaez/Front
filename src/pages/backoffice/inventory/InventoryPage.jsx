@@ -6,6 +6,7 @@ import { catalogProducts } from '../../../features/catalog/catalogData'
 import { getMedidasProducto } from '../../../features/catalog/productMeasures'
 import { formatCOP } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import imagenHidraulica from '../../../assets/lineas/hidraulica.jpeg'
 import imagenIncendio from '../../../assets/lineas/incendio.jpeg'
 import imagenAcueducto from '../../../assets/lineas/acueducto.jpeg'
@@ -23,7 +24,7 @@ const IMAGEN_LINEA = {
 const emptyForm = {
   linea_servicio: '', nombre: '', imagen_url: '', categoria: '',
   descripcion: '', precio_unitario: '', stock_disponible: '', stock_minimo: '',
-  estado: 'ACTIVO', pulgadas: '', condicion: '', precio_pesado: '', tipo_inventario: 'INVENTARIO', cantidad: '',
+  estado: 'ACTIVO', pulgadas: '', condicion: '', precio_pesado: '', valor_adquisicion: '', tipo_inventario: 'INVENTARIO', cantidad: '',
 }
 
 // ── Funciones puras (fuera del componente para reducir complejidad cognitiva) ──
@@ -47,6 +48,7 @@ function buildErrors(form, esHistorial, hayMedidas) {
     const reman = form.condicion === 'REMANUFACTURADO'   // un solo precio, sin económico ni pesado
     if (!form.precio_unitario || Number(form.precio_unitario) <= 0) e.precio_unitario = reman ? 'Ingresa el precio' : 'Ingresa el precio económico'
     if (!reman && (!form.precio_pesado || Number(form.precio_pesado) <= 0)) e.precio_pesado = 'Ingresa el precio pesado'
+    if (form.valor_adquisicion === '' || form.valor_adquisicion == null || Number(form.valor_adquisicion) < 0) e.valor_adquisicion = 'Ingresa el valor de adquisición'
     if (!form.condicion) e.condicion = 'Elige la condición'
     if (hayMedidas && !form.pulgadas) e.pulgadas = 'Elige la medida'
     if (form.stock_disponible === '' || !Number.isSafeInteger(Number(form.stock_disponible)) || Number(form.stock_disponible) < 0) e.stock_disponible = 'Ingresa un stock entero válido'
@@ -117,6 +119,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   const [products,    setProducts]    = useState([])
   const [search,      setSearch]      = useState('')
   const [lineaFiltro, setLineaFiltro] = useState('')
+  const [medidaFiltro, setMedidaFiltro] = useState('')
+  const [condicionFiltro, setCondicionFiltro] = useState('')
   const [modal,       setModal]       = useState(null)   // null | 'create' | 'edit'
   const [selected, setSelected] = useState(null)
   const [editOptions, setEditOptions] = useState([])
@@ -126,6 +130,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   const [toast,       setToast]       = useState('')
   const [errorStock, setErrorStock] = useState('')
   const [cantidadAgregar, setCantidadAgregar] = useState('')
+  const [confirmacion, setConfirmacion] = useState(null)   // { titulo, mensaje, detalles, textoConfirmar, accion }
 
   const load = useCallback(async () => {
     try {
@@ -176,7 +181,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       linea_servicio: p.linea_servicio || '', nombre: p.nombre || '', imagen_url: p.imagen_url || '',
       categoria: p.categoria || 'OTRO', descripcion: p.descripcion || '', pulgadas: p.pulgadas || '',
       condicion: p.condicion || '', tipo_inventario: p.tipo_inventario || tipoInventario,
-      precio_unitario: String(p.precio_unitario), precio_pesado: p.precio_pesado != null ? String(p.precio_pesado) : '', stock_disponible: String(p.stock_disponible),
+      precio_unitario: String(p.precio_unitario), precio_pesado: p.precio_pesado != null ? String(p.precio_pesado) : '', valor_adquisicion: p.valor_adquisicion != null ? String(p.valor_adquisicion) : '', stock_disponible: String(p.stock_disponible),
       stock_minimo: String(p.stock_minimo), estado: p.estado || 'ACTIVO',
     })
     setErrors({})
@@ -245,6 +250,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         tipo_inventario: tipoInventario,
         precio_unitario:  Number(form.precio_unitario),
         precio_pesado:    form.condicion === 'REMANUFACTURADO' ? null : Number(form.precio_pesado),
+        valor_adquisicion: Number(form.valor_adquisicion),
         stock_disponible: Number(form.stock_disponible),
         stock_minimo:     Number(form.stock_minimo),
         linea_label:      linea?.label || '',
@@ -268,6 +274,66 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     } finally {
       setLoading(false)
     }
+  }
+
+  // Confirmación final antes de guardar: muestra el resumen y solo entonces ejecuta
+  const nombreConMedida = (n, m) => `${n || ''}${m ? ` ${m}` : ''}`
+  const confirmarGuardar = () => {
+    if (!validate()) return
+    const nombre = nombreConMedida(form.nombre, form.pulgadas)
+    const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)?.label
+    if (esHistorial) {
+      setConfirmacion({
+        titulo: `¿Agregar a ${titulo}?`,
+        mensaje: `Se agregarán ${form.cantidad} und. de ${nombre} a ${titulo}.`,
+        detalles: [['Producto', nombre], ['Línea', linea], ['Condición', etiquetaCondicion(condicionPorLinea(form.linea_servicio))], ['Cantidad', `${form.cantidad} und.`]],
+        textoConfirmar: `Sí, agregar a ${titulo}`,
+        accion: handleSave,
+      })
+      return
+    }
+    const reman = form.condicion === 'REMANUFACTURADO'
+    const detalles = [
+      ['Producto', nombre], ['Línea', linea], ['Condición', etiquetaCondicion(form.condicion)],
+      [reman ? 'Precio' : 'Precio económico', formatCOP(Number(form.precio_unitario))],
+      ['Precio pesado', reman ? null : formatCOP(Number(form.precio_pesado))],
+      ['Valor de adquisición', formatCOP(Number(form.valor_adquisicion))],
+    ]
+    if (modal === 'create') {
+      setConfirmacion({
+        titulo: '¿Crear el producto en Inventario?',
+        mensaje: `Se creará ${nombre} con ${form.stock_disponible} und.`,
+        detalles: [...detalles, ['Stock inicial', `${form.stock_disponible} und.`], ['Stock mínimo', form.stock_minimo]],
+        textoConfirmar: 'Sí, crear producto',
+        accion: handleSave,
+      })
+    } else {
+      const suma = Number(cantidadAgregar) || 0
+      setConfirmacion({
+        titulo: '¿Guardar los cambios?',
+        mensaje: `Se actualizará ${nombre}${suma > 0 ? ` y se sumarán ${suma} und. al stock` : ''}.`,
+        detalles: [...detalles, ['Stock mínimo', form.stock_minimo], ['Unidades a sumar', suma > 0 ? `${suma} und.` : null]],
+        textoConfirmar: 'Sí, guardar cambios',
+        accion: handleSave,
+      })
+    }
+  }
+  const confirmarTraspaso = (p) => {
+    const n = cantidadAMover(p)
+    const nombre = nombreConMedida(p.nombre, p.pulgadas)
+    setConfirmacion(esBodega ? {
+      titulo: '¿Pasar a Arreglos?',
+      mensaje: `Se pasarán ${unidades(n)} de ${nombre} de Bodega a Arreglos.`,
+      detalles: [['Producto', nombre], ['Cantidad', unidades(n)], ['Quedan en Bodega', unidades(p.stock_disponible - n)]],
+      textoConfirmar: 'Sí, pasar a Arreglos',
+      accion: () => transferirAArreglos(p),
+    } : {
+      titulo: '¿Sumar al Inventario?',
+      mensaje: `Se sumarán ${unidades(n)} de ${nombre} al Inventario y saldrán de Arreglos.`,
+      detalles: [['Producto', nombre], ['Condición', etiquetaCondicion(p.condicion)], ['Cantidad', unidades(n)], ['Quedan en Arreglos', unidades(p.stock_disponible - n)]],
+      textoConfirmar: 'Sí, sumar al Inventario',
+      accion: () => transferirAlInventario(p),
+    })
   }
 
   // Cuántas unidades mover en cada fila de Bodega/Arreglos (por defecto, todas)
@@ -326,6 +392,20 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
   const currentSubcats = subcatsForLinea(form.linea_servicio)
   // Con texto en el buscador se busca en todas las líneas; sin texto, solo la línea elegida.
+  // Filtros de la tabla: medida y condición sobre lo ya filtrado por línea y búsqueda
+  const medidasDisponibles = [...new Set(products.map(p => p.pulgadas || ''))]
+    .sort((a, b) => {
+      const ka = clavePulgadas(a), kb = clavePulgadas(b)
+      for (let k = 0; k < Math.max(ka.length, kb.length); k++) {
+        const d = (ka[k] ?? -1) - (kb[k] ?? -1)
+        if (d) return d
+      }
+      return a.localeCompare(b)
+    })
+  const visibles = products.filter(p => (!medidaFiltro || (medidaFiltro === '__sin' ? !p.pulgadas : p.pulgadas === medidaFiltro))
+    && (!condicionFiltro || p.condicion === condicionFiltro))
+  const hayFiltros = lineaFiltro || medidaFiltro || condicionFiltro || search
+
   const textoBusqueda = normalizar(busqueda)
   const subcatsVisibles = textoBusqueda
     ? TODOS_LOS_SUBCATS.filter(s => normalizar(s.nombre).includes(textoBusqueda))
@@ -355,7 +435,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>{titulo}</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{products.length} {products.length === 1 ? 'producto' : 'productos'} {esHistorial ? 'en el historial' : (products.length === 1 ? 'registrado' : 'registrados')}</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-3)' }}>{visibles.length} {visibles.length === 1 ? 'producto' : 'productos'} {esHistorial ? 'en el historial' : (visibles.length === 1 ? 'registrado' : 'registrados')}{visibles.length !== products.length ? ` de ${products.length}` : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           {!esHistorial && <button onClick={openEdit} disabled={loading} className="btn-outline text-sm gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -381,6 +461,25 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           <option value="">Todas las líneas</option>
           {LINEAS_SERVICIO.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
         </select>
+        <select value={medidaFiltro} onChange={e => setMedidaFiltro(e.target.value)} aria-label="Filtrar por medida"
+          className="px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+          style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${medidaFiltro ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+          <option value="">Todas las medidas</option>
+          {medidasDisponibles.map(m => <option key={m || '__sin'} value={m || '__sin'}>{m || 'Sin medida'}</option>)}
+        </select>
+        <select value={condicionFiltro} onChange={e => setCondicionFiltro(e.target.value)} aria-label="Filtrar por condición"
+          className="px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+          style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${condicionFiltro ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+          <option value="">Nuevo y remanufacturado</option>
+          <option value="NUEVO">Nuevo</option>
+          <option value="REMANUFACTURADO">Remanufacturado</option>
+        </select>
+        {hayFiltros && (
+          <button onClick={() => { setLineaFiltro(''); setMedidaFiltro(''); setCondicionFiltro(''); setSearch('') }}
+            className="px-3 py-2.5 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+            Quitar filtros
+          </button>
+        )}
       </div>
 
       {/* Tabla */}
@@ -395,14 +494,14 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
               </tr>
             </thead>
             <tbody>
-              {products.length === 0 && (
+              {visibles.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
                     No hay productos registrados aún. Haz clic en <strong>&quot;Agregar producto&quot;</strong> para comenzar.
                   </td>
                 </tr>
               )}
-              {products.map((p) => {
+              {visibles.map((p) => {
                 const linea = LINEAS_SERVICIO.find(l => l.value === (p.linea_servicio || p.categoria))
                 return (
                   <tr key={p.id}>
@@ -444,7 +543,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                                 className="w-16 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
                                 style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
                             )}
-                            <button type="button" onClick={() => (esBodega ? transferirAArreglos(p) : transferirAlInventario(p))}
+                            <button type="button" onClick={() => confirmarTraspaso(p)}
                               disabled={loading || p.stock_disponible <= 0}
                               className="btn-primary text-xs px-3 py-2 whitespace-nowrap disabled:opacity-50">
                               {esBodega ? `Pasar ${cantidadAMover(p)} a arreglos` : `Sumar ${cantidadAMover(p)} al inventario`}
@@ -497,7 +596,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       <Modal isOpen={modal === 'create' || modal === 'edit'}
         onClose={() => setModal(null)}
         title={esHistorial ? `Agregar producto a ${titulo}` : (modal === 'create' ? 'Agregar producto al Inventario' : selected ? 'Editar: ' + selected.nombre : 'Editar producto')}
-        size="lg">
+        size="xl">
         <div className="space-y-6">
 
           {/* ── PASO 1: Línea de servicio ── */}
@@ -747,6 +846,21 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   {errors.precio_pesado && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_pesado}</p>}
                 </div>
                 )}
+{!esHistorial && (
+                <div>
+                  <label htmlFor="inv-adquisicion" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
+                    Valor de adquisición (COP) <span className="text-red-500">*</span>
+                  </label>
+                  <input id="inv-adquisicion" type="number" min="0" placeholder="30000"
+                    value={form.valor_adquisicion}
+                    onChange={e => { setForm(f => ({ ...f, valor_adquisicion: e.target.value })); setErrors(er => ({ ...er, valor_adquisicion: '' })) }}
+                    className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-colors"
+                    style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.valor_adquisicion ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }} />
+                  {errors.valor_adquisicion
+                    ? <p className="mt-0.5 text-[10px] text-red-500">{errors.valor_adquisicion}</p>
+                    : <p className="mt-0.5 text-[10px]" style={{ color: 'var(--tx-3)' }}>Lo que costó cada unidad. Se usa en Históricos para la ganancia.</p>}
+                </div>
+                )}
 
                 {/* Stock disponible */}
 {!esHistorial && (
@@ -821,7 +935,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
           {/* ── Botones ── */}
           <div className="flex gap-3 pt-1">
-            <button onClick={handleSave}
+            <button onClick={confirmarGuardar}
               disabled={loading || (modal === 'edit' && !selected)}
               className="btn-primary flex-1 justify-center py-2.5 disabled:opacity-50">
               {saveLabel}
@@ -830,6 +944,11 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog abierto={!!confirmacion} titulo={confirmacion?.titulo || ''} mensaje={confirmacion?.mensaje}
+        detalles={confirmacion?.detalles} textoConfirmar={confirmacion?.textoConfirmar} cargando={loading}
+        onCancelar={() => setConfirmacion(null)}
+        onConfirmar={async () => { const c = confirmacion; setConfirmacion(null); await c.accion() }} />
     </div>
   )
 }

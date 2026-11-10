@@ -1,18 +1,25 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   FaPhone, FaEnvelope, FaTimesCircle, FaSpinner, FaChevronDown,
-  FaReceipt, FaDownload, FaPlus, FaExternalLinkAlt, FaSearch,
+  FaReceipt, FaDownload, FaPlus, FaExternalLinkAlt, FaSearch, FaIdCard, FaMapMarkerAlt, FaUserCheck,
 } from 'react-icons/fa'
 import { orderService } from '../../../services/api/orderService'
 import { productService } from '../../../services/api/productService'
+import { clienteService } from '../../../services/api/clienteService'
+import { cajeroService, deudaService } from '../../../services/api/deudaService'
 import { formatCOP, formatDate, formatDateTime } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { websocketService } from '../../../services/api/websocketService'
 import { encolarVenta, esErrorDeRed, nuevaClave, ventasOfflineSync } from '../../../services/offline/ventasOfflineSync'
 import VentasOfflinePanel from './VentasOfflinePanel'
 import { useOfflineStore } from '../../../store/offlineStore'
 
 const CACHE_PRODUCTOS = 'manhid-productos-venta'
+const CLIENTE_VACIO = { nombre: '', cedula: '', nit: '', telefono: '', email: '', direccion: '' }
+const METODOS_PAGO = [['EFECTIVO', 'Efectivo'], ['TRANSFERENCIA', 'Transferencia']]
+const etiquetaMetodo = (m) => (m === 'TRANSFERENCIA' ? 'Transferencia' : m === 'EFECTIVO' ? 'Efectivo' : null)
+const etiquetaProducto = (p) => `${p.nombre}${p.pulgadas ? ` ${p.pulgadas}` : ''}`
 
 const STATES  = ['PENDIENTE', 'EN_PROCESO', 'VENTA_EXITOSA', 'CANCELADA']
 const MOTIVOS = ['Cliente no contestó', 'Cliente desistió de la compra', 'Producto no disponible a precios acordados', 'Error de cotización', 'Otro']
@@ -43,16 +50,49 @@ export default function OrdersPage() {
   const [productos,       setProductos]       = useState([])
   const [cantidades,      setCantidades]      = useState({})
   const [tiposPrecio,     setTiposPrecio]     = useState({})   // { [productoId]: 'ECONOMICO' | 'PESADO' }
-  const [vfCliente,       setVfCliente]       = useState({ nombre: '', telefono: '', email: '' })
+  const [vfCliente,       setVfCliente]       = useState(CLIENTE_VACIO)
+  const [vfClienteId,     setVfClienteId]     = useState(null)    // cliente guardado elegido
+  const [vfBuscaCliente,  setVfBuscaCliente]  = useState('')
+  const [vfSugerencias,   setVfSugerencias]   = useState([])
+  const [productoFiltro,  setProductoFiltro]  = useState('')      // historial por producto
+  const [productosFiltro, setProductosFiltro] = useState([])
   const [vfDescripcion,   setVfDescripcion]   = useState('')
   const [vfPagado,        setVfPagado]        = useState('')
+  const [vfMetodoPago,    setVfMetodoPago]    = useState('')      // EFECTIVO | TRANSFERENCIA
+  const [vfRecibidoPor,   setVfRecibidoPor]   = useState('')      // quién recibió en caja
+  const [vfDebe,          setVfDebe]          = useState(false)
+  const [vfMontoDebe,     setVfMontoDebe]     = useState('')
+  const [cajeros,         setCajeros]         = useState([])
+  const [confirmarVenta,  setConfirmarVenta]  = useState(false)
+  const [deudas,          setDeudas]          = useState(null)    // órdenes con saldo pendiente (null: sin permiso)
   const [vfBusqueda,      setVfBusqueda]      = useState('')
   const [vfErrors,        setVfErrors]        = useState({})
   const [loadingVF,       setLoadingVF]       = useState(false)
   const [exportLoading,   setExportLoading]   = useState(false)
 
-  const load = useCallback(() => orderService.getAll().then(setOrders).catch(() => {}), [])
+  const load = useCallback(() => {
+    deudaService.listar().then(setDeudas).catch(() => setDeudas(d => d ?? null))
+    return orderService.getAll({ productoId: productoFiltro }).then(setOrders).catch(() => {})
+  }, [productoFiltro])
   useEffect(() => { load() }, [load])
+
+  // Productos para el filtro de historial (todos los de Inventario, por nombre y medida)
+  useEffect(() => {
+    cajeroService.listar().then(setCajeros).catch(() => {})
+    productService.getAll({ tipoInventario: 'INVENTARIO' })
+      .then(r => setProductosFiltro([...r.data].sort((a, b) =>
+        etiquetaProducto(a).localeCompare(etiquetaProducto(b), 'es', { numeric: true, sensitivity: 'base' }))))
+      .catch(() => {})
+  }, [])
+
+  // Clientes guardados: sugerencias mientras se escribe (o los más recientes al abrir el paso 2)
+  useEffect(() => {
+    if (!vfOpen || vfPaso !== 2) return
+    const t = setTimeout(() => {
+      clienteService.buscar(vfBuscaCliente.trim()).then(setVfSugerencias).catch(() => setVfSugerencias([]))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [vfBuscaCliente, vfOpen, vfPaso])
 
   // Tiempo real: recarga al instante cuando llega una orden nueva via WebSocket.
   // Respaldo: refresca cada 20 s por si el WebSocket no conecta.
@@ -69,9 +109,15 @@ export default function OrdersPage() {
     setVfPaso(1)
     setCantidades({})
     setTiposPrecio({})
-    setVfCliente({ nombre: '', telefono: '', email: '' })
+    setVfCliente(CLIENTE_VACIO)
+    setVfClienteId(null)
+    setVfBuscaCliente('')
     setVfDescripcion('')
     setVfPagado('')
+    setVfMetodoPago('')
+    setVfRecibidoPor('')
+    setVfDebe(false)
+    setVfMontoDebe('')
     setVfBusqueda('')
     setVfErrors({})
     // Se guarda una copia del catálogo para poder vender aunque se caiga el internet.
@@ -88,7 +134,8 @@ export default function OrdersPage() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
 
-  const filtered = filter === 'all' ? orders : orders.filter(o => o.estado === filter)
+  const deben = (deudas || []).filter(o => !productoFiltro || o.items.some(i => i.producto_id === Number(productoFiltro)))
+  const filtered = filter === 'deben' ? deben : filter === 'all' ? orders : orders.filter(o => o.estado === filter)
 
   const setQty = (id, qty) => setCantidades(prev => {
     if (qty <= 0) { const next = { ...prev }; delete next[id]; return next }
@@ -159,11 +206,23 @@ export default function OrdersPage() {
   }
 
   const setCliente = (k) => (e) => setVfCliente(p => ({ ...p, [k]: e.target.value }))
+  const elegirCliente = (c) => {
+    setVfCliente({ nombre: c.nombre, cedula: c.cedula, nit: c.nit, telefono: c.telefono, email: c.email, direccion: c.direccion })
+    setVfClienteId(c.id)
+    setVfBuscaCliente('')
+    setVfErrors(er => ({ ...er, nombre: '', email: '' }))
+  }
+  const quitarCliente = () => { setVfCliente(CLIENTE_VACIO); setVfClienteId(null) }
 
   const validarCliente = () => {
     const e = {}
     if (!vfCliente.nombre.trim()) e.nombre = 'El nombre es obligatorio'
-    if (vfPagado === '' || Number(vfPagado) <= 0) e.pagado = 'Ingresa cuánto pagó el cliente'
+    if (vfCliente.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vfCliente.email.trim())) e.email = 'Correo no válido'
+    if (vfPagado === '' || Number(vfPagado) < 0 || (Number(vfPagado) === 0 && !vfDebe)) e.pagado = 'Ingresa cuánto pagó el cliente'
+    if (vfDebe && !(Number(vfMontoDebe) > 0)) e.montoDebe = 'Ingresa cuánto quedó debiendo'
+    else if (vfDebe && Number(vfMontoDebe) > vfTotal) e.montoDebe = 'No puede ser mayor que el total de la venta'
+    if (!vfMetodoPago) e.metodoPago = 'Elige si pagó en efectivo o por transferencia'
+    if (!vfRecibidoPor) e.recibidoPor = 'Elige quién recibió en caja'
     setVfErrors(e)
     return Object.keys(e).length === 0
   }
@@ -173,15 +232,24 @@ export default function OrdersPage() {
     setLoadingVF(true)
     try {
       const cliente = {
-        nombre: vfCliente.nombre,
-        telefono: vfCliente.telefono || null,
-        email: vfCliente.email || null,
+        nombre: vfCliente.nombre.trim(),
+        cedula: vfCliente.cedula.trim() || null,
+        nit: vfCliente.nit.trim() || null,
+        telefono: vfCliente.telefono.trim() || null,
+        email: vfCliente.email.trim() || null,
+        direccion: vfCliente.direccion.trim() || null,
+        clienteId: vfClienteId,
       }
       const clave = nuevaClave()
-      const totalPagado = Number(vfPagado)
+      const pago = {
+        totalPagado: Number(vfPagado),
+        metodoPago: vfMetodoPago,
+        recibidoPor: vfRecibidoPor,
+        montoDeuda: vfDebe ? Number(vfMontoDebe) : null,
+      }
       const items = vfItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio }))
       try {
-        const venta = await orderService.ventaFisica(items, cliente, vfDescripcion, clave, totalPagado)
+        const venta = await orderService.ventaFisica(items, cliente, vfDescripcion, clave, pago)
         setOrders(prev => [venta, ...prev.filter(o => o.id !== venta.id)])
         setFilter('all')
         showToast('Venta física registrada correctamente')
@@ -189,7 +257,7 @@ export default function OrdersPage() {
         if (!esErrorDeRed(err)) throw err
         // Sin internet (o se cortó a mitad): se guarda en la cola local con la MISMA clave.
         // Si la venta sí alcanzó a llegar, al sincronizar el backend la detecta como duplicada.
-        await encolarVenta({ clave, items, cliente, descripcion: vfDescripcion, totalPagado })
+        await encolarVenta({ clave, items, cliente, descripcion: vfDescripcion, ...pago })
         showToast('📴 Sin conexión: la venta quedó guardada y se enviará sola al volver el internet')
       }
     } catch (err) {
@@ -252,7 +320,7 @@ export default function OrdersPage() {
           style={{ color: filter === 'all' ? undefined : 'var(--tx-2)', border: '1px solid var(--bd-1)' }}>
           Todas ({orders.length})
         </button>
-        {STATES.map(s => {
+        {['VENTA_EXITOSA'].map(s => {
           const cfg = STATE_CONFIG[s]
           return (
             <button key={s} onClick={() => setFilter(s)}
@@ -262,13 +330,57 @@ export default function OrdersPage() {
             </button>
           )
         })}
+        {deudas && (
+          <button onClick={() => setFilter('deben')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${filter === 'deben' ? 'bg-red-500/10 border-red-500/25 text-red-500' : ''}`}
+            style={{ color: filter === 'deben' ? undefined : 'var(--tx-2)', borderColor: filter === 'deben' ? undefined : 'var(--bd-1)' }}>
+            Deben ({deben.length})
+          </button>
+        )}
       </div>
+
+      {/* Historial por producto */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <label htmlFor="filtro-producto" className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tx-3)' }}>
+          Producto
+        </label>
+        <select id="filtro-producto" value={productoFiltro} onChange={e => { setProductoFiltro(e.target.value); setFilter('all'); setExpandedId(null) }}
+          className="flex-1 min-w-0 sm:flex-none sm:w-96 px-3 py-2 rounded-xl text-sm outline-none"
+          style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${productoFiltro ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+          <option value="">Todos los productos</option>
+          {productosFiltro.map(p => (
+            <option key={p.id} value={p.id}>{etiquetaProducto(p)}{p.estado !== 'ACTIVO' ? ' (inactivo)' : ''}</option>
+          ))}
+        </select>
+        {productoFiltro && (
+          <button onClick={() => setProductoFiltro('')} className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+            Quitar filtro
+          </button>
+        )}
+      </div>
+      {productoFiltro && (() => {
+        const id = Number(productoFiltro)
+        const vendidas = orders.filter(o => o.estado === 'VENTA_EXITOSA')
+        const lineas = vendidas.flatMap(o => o.items.filter(i => i.producto_id === id))
+        const unidades = lineas.reduce((s, i) => s + i.cantidad, 0)
+        const valor = lineas.reduce((s, i) => s + i.precio_unitario_momento * i.cantidad, 0)
+        const p = productosFiltro.find(x => x.id === id)
+        return (
+          <div className="mb-4 p-3 rounded-xl text-sm flex flex-wrap gap-x-6 gap-y-1"
+            style={{ backgroundColor: 'rgba(140,144,59,0.08)', border: '1px solid rgba(140,144,59,0.2)', color: 'var(--tx-2)' }}>
+            <span>Historial de <strong style={{ color: 'var(--tx-1)' }}>{p ? etiquetaProducto(p) : 'producto'}</strong></span>
+            <span><strong style={{ color: 'var(--tx-1)' }}>{orders.length}</strong> orden(es)</span>
+            <span><strong style={{ color: 'var(--tx-1)' }}>{unidades}</strong> und. vendidas en {vendidas.length} venta(s) exitosa(s)</span>
+            <span>Valor de productos: <strong className="text-brand-600 dark:text-brand-300">{formatCOP(valor)}</strong></span>
+          </div>
+        )
+      })()}
 
       {/* Lista */}
       <div className="space-y-3">
         {filtered.length === 0 && (
           <div className="text-center py-16 rounded-2xl" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-            <p style={{ color: 'var(--tx-3)' }}>No hay órdenes en este estado.</p>
+            <p style={{ color: 'var(--tx-3)' }}>{filter === 'deben' ? 'Nadie debe nada.' : productoFiltro ? 'Este producto no tiene órdenes en este estado.' : 'No hay órdenes en este estado.'}</p>
           </div>
         )}
         {filtered.map(order => {
@@ -296,6 +408,11 @@ export default function OrdersPage() {
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${cfg.bg}`}>{cfg.label}</span>
                     {factCfg && (
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${factCfg.bg}`}>{factCfg.label}</span>
+                    )}
+                    {order.saldo_deuda > 0 && (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-red-500/10 border-red-500/25 text-red-500">
+                        Debe {formatCOP(order.saldo_deuda)}
+                      </span>
                     )}
                     <span className="text-xs" style={{ color: 'var(--tx-3)' }}>
                       {elapsed < 60 ? `hace ${elapsed} min` : formatDate(order.fecha_creacion)}
@@ -332,7 +449,7 @@ export default function OrdersPage() {
                         {order.items?.map(item => (
                           <div key={item.producto_id} className="flex justify-between text-xs p-2.5 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
                             <span style={{ color: 'var(--tx-1)' }}>
-                              {item.nombre} <span style={{ color: 'var(--tx-3)' }}>×{item.cantidad}</span>
+                              <span className={productoFiltro && item.producto_id === Number(productoFiltro) ? 'font-bold' : undefined}>{item.nombre}{item.pulgadas ? ` ${item.pulgadas}` : ''}</span> <span style={{ color: 'var(--tx-3)' }}>×{item.cantidad}</span>
                               {item.tipo_precio && (
                                 <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
                                   · {item.tipo_precio === 'PESADO' ? 'Pesado' : 'Económico'}
@@ -362,7 +479,23 @@ export default function OrdersPage() {
                         <p className="font-semibold" style={{ color: 'var(--tx-1)' }}>{order.cliente?.nombre}</p>
                         <p className="flex items-center gap-2"><FaPhone size={10} className="text-brand-500"/> {order.cliente?.telefono}</p>
                         <p className="flex items-center gap-2"><FaEnvelope size={10} className="text-brand-500"/> {order.cliente?.email}</p>
+                        {order.cliente?.cedula && <p className="flex items-center gap-2"><FaIdCard size={10} className="text-brand-500"/> {order.cliente.cedula}</p>}
+                        {order.cliente?.nit && <p className="flex items-center gap-2"><FaIdCard size={10} className="text-brand-500"/> NIT {order.cliente.nit}</p>}
+                        {order.cliente?.direccion && <p className="flex items-center gap-2"><FaMapMarkerAlt size={10} className="text-brand-500"/> {order.cliente.direccion}</p>}
                       </div>
+                      {(order.metodo_pago || order.recibido_por || order.monto_deuda > 0) && (
+                        <div className="mt-3 p-2.5 rounded-xl text-xs space-y-1" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-2)' }}>
+                          {order.metodo_pago && <p><strong style={{ color: 'var(--tx-1)' }}>Pago:</strong> {etiquetaMetodo(order.metodo_pago)}</p>}
+                          {order.recibido_por && <p><strong style={{ color: 'var(--tx-1)' }}>Recibió en caja:</strong> {order.recibido_por}</p>}
+                          {order.monto_deuda > 0 && (
+                            <p><strong style={{ color: 'var(--tx-1)' }}>Quedó debiendo:</strong> {formatCOP(order.monto_deuda)}
+                              {' · '}{order.saldo_deuda > 0
+                                ? <span className="text-red-500 font-semibold">saldo {formatCOP(order.saldo_deuda)}</span>
+                                : <span className="text-green-600 font-semibold">ya pagó</span>}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       {order.es_venta_fisica && order.descripcion && (
                         <div className="mt-3 p-2.5 rounded-xl text-xs" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-2)' }}>
                           <strong style={{ color: 'var(--tx-1)' }}>Descripción de la venta:</strong> {order.descripcion}
@@ -479,7 +612,7 @@ export default function OrdersPage() {
       </Modal>
 
       {/* Modal Venta Física — Paso 1: productos */}
-      <Modal isOpen={vfOpen && vfPaso === 1} onClose={() => setVfOpen(false)} title="Nueva Venta Física — Paso 1 de 2" size="lg">
+      <Modal isOpen={vfOpen && vfPaso === 1} onClose={() => setVfOpen(false)} title="Nueva Venta Física — Paso 1 de 2" size="xl">
         <p className="text-xs mb-4" style={{ color: 'var(--tx-3)' }}>
           Selecciona los productos y las cantidades que compró el cliente.
         </p>
@@ -501,7 +634,7 @@ export default function OrdersPage() {
           </div>
         )}
         {productosVisibles.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto pr-1 mb-4">
             {productosVisibles.map(p => {
               const stock = stockVendible(p)
               const bajo  = stock <= (p.stock_minimo ?? 0)
@@ -515,6 +648,10 @@ export default function OrdersPage() {
                   <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>
                     {p.nombre}
                     {p.pulgadas && <span className="ml-1.5 text-xs font-medium" style={{ color: 'var(--tx-3)' }}>{p.pulgadas}</span>}
+                    <span className={`ml-2 align-middle px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${p.condicion === 'REMANUFACTURADO'
+                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300' : 'bg-sky-500/15 text-sky-600 dark:text-sky-300'}`}>
+                      {p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo'}
+                    </span>
                   </p>
                   <p className={`text-xs font-semibold mt-0.5 ${bajo ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
                     Stock: {stock} und.{bajo && stock > 0 ? ' · bajo' : ''}{stock === 0 ? ' · agotado' : ''}
@@ -575,7 +712,7 @@ export default function OrdersPage() {
       </Modal>
 
       {/* Modal Venta Física — Paso 2: datos cliente + resumen */}
-      <Modal isOpen={vfOpen && vfPaso === 2} onClose={() => setVfOpen(false)} title="Nueva Venta Física — Paso 2 de 2" size="lg">
+      <Modal isOpen={vfOpen && vfPaso === 2} onClose={() => setVfOpen(false)} title="Nueva Venta Física — Paso 2 de 2" size="xl">
         {/* Resumen */}
         <div className="mb-4 rounded-xl overflow-hidden" style={{ border: '1px solid var(--bd-1)' }}>
           <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--tx-3)' }}>
@@ -589,7 +726,7 @@ export default function OrdersPage() {
                   <span>
                     {p.nombre}{p.pulgadas ? ` ${p.pulgadas}` : ''} ×{cantidad}
                     <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>
-                      · {p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : tipoPrecio === 'PESADO' ? 'Pesado' : 'Económico'}
+                      · {p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : `Nuevo · ${tipoPrecio === 'PESADO' ? 'Pesado' : 'Económico'}`}
                     </span>
                   </span>
                   <span className="font-semibold">{formatCOP(precioDe(p) * cantidad)}</span>
@@ -625,11 +762,110 @@ export default function OrdersPage() {
               </p>
             )}
           </div>
+          <div className="px-3 py-2.5" style={{ borderTop: '1px solid var(--bd-1)' }}>
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="vf-debe" className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input id="vf-debe" type="checkbox" checked={vfDebe} className="sr-only peer"
+                  onChange={e => {
+                    const on = e.target.checked
+                    setVfDebe(on)
+                    // Sugerencia: lo que falta para completar el total
+                    if (on && vfMontoDebe === '' && vfPagado !== '' && Number(vfPagado) < vfTotal) setVfMontoDebe(String(vfTotal - Number(vfPagado)))
+                    if (!on) setVfMontoDebe('')
+                    setVfErrors(er => ({ ...er, montoDebe: '', pagado: '' }))
+                  }} />
+                <span aria-hidden="true" className={`relative inline-block w-9 h-5 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 ${vfDebe ? 'bg-red-500' : 'bg-gray-400/40'}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${vfDebe ? 'translate-x-4' : ''}`} />
+                </span>
+                <span className="text-sm font-bold" style={{ color: 'var(--tx-1)' }}>Debe</span>
+                <span className="text-[11px]" style={{ color: 'var(--tx-3)' }}>{vfDebe ? 'El cliente quedó debiendo' : 'No debe nada'}</span>
+              </label>
+              {vfDebe && (
+                <input id="vf-monto-debe" aria-label="Monto que debe" type="number" min="0" step="1" inputMode="numeric" placeholder="0"
+                  value={vfMontoDebe}
+                  onChange={e => { setVfMontoDebe(e.target.value); setVfErrors(er => ({ ...er, montoDebe: '' })) }}
+                  className="w-36 px-3 py-1.5 rounded-xl text-sm text-right font-bold outline-none text-red-500"
+                  style={{ backgroundColor: 'var(--bg-input)', border: '1px solid ' + (vfErrors.montoDebe ? '#ef4444' : 'var(--bd-1)') }} />
+              )}
+            </div>
+            {vfErrors.montoDebe && <p className="mt-1 text-xs text-red-500 text-right">{vfErrors.montoDebe}</p>}
+            {vfDebe && !vfErrors.montoDebe && (
+              <p className="mt-1 text-[11px] text-right" style={{ color: 'var(--tx-3)' }}>Aparecerá en Deudores hasta que lo pague.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div>
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Forma de pago *</p>
+            <div role="radiogroup" aria-label="Forma de pago" className="flex rounded-xl overflow-hidden text-sm font-bold"
+              style={{ border: '1px solid ' + (vfErrors.metodoPago ? '#ef4444' : 'var(--bd-1)') }}>
+              {METODOS_PAGO.map(([valor, label]) => (
+                <button key={valor} type="button" role="radio" aria-checked={vfMetodoPago === valor}
+                  onClick={() => { setVfMetodoPago(valor); setVfErrors(er => ({ ...er, metodoPago: '' })) }}
+                  className={`flex-1 px-3 py-2 transition-colors ${vfMetodoPago === valor ? 'bg-brand-600 text-white' : 'hover:bg-brand-500/10'}`}
+                  style={vfMetodoPago === valor ? undefined : { color: 'var(--tx-2)' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {vfErrors.metodoPago && <p className="mt-0.5 text-xs text-red-500">{vfErrors.metodoPago}</p>}
+          </div>
+          <div>
+            <label htmlFor="vf-recibido" className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Recibió en caja *</label>
+            <select id="vf-recibido" value={vfRecibidoPor} onChange={e => { setVfRecibidoPor(e.target.value); setVfErrors(er => ({ ...er, recibidoPor: '' })) }}
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid ' + (vfErrors.recibidoPor ? '#ef4444' : 'var(--bd-1)'), color: 'var(--tx-1)' }}>
+              <option value="">Selecciona…</option>
+              {cajeros.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {vfErrors.recibidoPor && <p className="mt-0.5 text-xs text-red-500">{vfErrors.recibidoPor}</p>}
+          </div>
         </div>
 
         <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--tx-3)' }}>Datos del cliente</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1 mb-4">
-          {[['nombre', 'Nombre completo', 'Nombre del cliente', 'text'], ['telefono', 'Teléfono (opcional)', '310 000 0000', 'tel'], ['email', 'Email (opcional)', 'cliente@email.com', 'email']].map(([key, label, placeholder, type]) => (
+        {vfClienteId ? (
+          <div className="mb-3 p-2.5 rounded-xl flex items-center justify-between gap-3 text-xs"
+            style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: 'var(--tx-2)' }}>
+            <span className="flex items-center gap-2"><FaUserCheck className="text-green-600" size={12} />
+              Cliente guardado. Si cambias algún dato, se actualiza para las próximas ventas.</span>
+            <button type="button" onClick={quitarCliente} className="font-semibold text-brand-600 dark:text-brand-400 hover:underline whitespace-nowrap">
+              Otro cliente
+            </button>
+          </div>
+        ) : (
+          <div className="relative mb-3">
+            <FaSearch className="absolute left-3 top-[1.15rem] -translate-y-1/2" size={12} style={{ color: 'var(--tx-3)' }} />
+            <input type="search" value={vfBuscaCliente} onChange={e => setVfBuscaCliente(e.target.value)}
+              placeholder="Buscar cliente guardado por nombre, cédula o teléfono…" aria-label="Buscar cliente guardado"
+              className="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+            {vfSugerencias.length > 0 && (
+              <ul role="listbox" aria-label="Clientes guardados" className="mt-1.5 max-h-40 overflow-y-auto rounded-xl divide-y"
+                style={{ border: '1px solid var(--bd-1)', backgroundColor: 'var(--bg-surface)', borderColor: 'var(--bd-1)' }}>
+                {vfSugerencias.map(c => (
+                  <li key={c.id}>
+                    <button type="button" role="option" aria-selected="false" onClick={() => elegirCliente(c)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-brand-500/10 transition-colors">
+                      <span className="font-semibold" style={{ color: 'var(--tx-1)' }}>{c.nombre}</span>
+                      <span className="ml-2" style={{ color: 'var(--tx-3)' }}>
+                        {[c.cedula && `C.C. ${c.cedula}`, c.telefono, c.email].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {vfBuscaCliente.trim() && vfSugerencias.length === 0 && (
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--tx-3)' }}>No hay clientes guardados con ese dato. Llena los campos y se guardará con la venta.</p>
+            )}
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          {[['nombre', 'Nombre completo *', 'Nombre del cliente', 'text'], ['cedula', 'Cédula (opcional)', '1020304050', 'text'],
+            ['nit', 'NIT (opcional)', '900123456-7', 'text'],
+            ['telefono', 'Teléfono (opcional)', '310 000 0000', 'tel'], ['email', 'Correo (opcional)', 'cliente@email.com', 'email'],
+            ['direccion', 'Dirección (opcional)', 'Calle 10 # 20-30', 'text']].map(([key, label, placeholder, type]) => (
             <div key={key}>
               <label htmlFor={'vf-' + key} className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>{label}</label>
               <input id={'vf-' + key} type={type} placeholder={placeholder} value={vfCliente[key]} onChange={setCliente(key)}
@@ -652,13 +888,28 @@ export default function OrdersPage() {
           <button onClick={() => setVfPaso(1)} className="btn-outline py-2.5 px-4 text-sm font-bold">
             ← Volver
           </button>
-          <button onClick={handleVentaFisica} disabled={loadingVF}
+          <button onClick={() => { if (validarCliente()) setConfirmarVenta(true) }} disabled={loadingVF}
             className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-brand-600 hover:bg-brand-500 text-white transition-colors disabled:opacity-50">
             {loadingVF ? 'Registrando…' : 'Confirmar Venta Física'}
           </button>
           <button onClick={() => setVfOpen(false)} className="btn-outline py-2.5 px-4 text-sm font-bold">Cancelar</button>
         </div>
       </Modal>
+
+      <ConfirmDialog abierto={confirmarVenta} titulo="¿Registrar la venta física?" cargando={loadingVF}
+        mensaje="Al confirmar se descuenta el stock y la venta queda registrada."
+        detalles={[
+          ['Cliente', vfCliente.nombre],
+          ['Productos', `${vfItems.length} producto(s) · ${vfItems.reduce((s, i) => s + i.cantidad, 0)} und.`],
+          ['Total', formatCOP(vfTotal)],
+          ['Pagado', vfPagado !== '' ? formatCOP(Number(vfPagado)) : null],
+          ['Debe', vfDebe ? formatCOP(Number(vfMontoDebe)) : null],
+          ['Forma de pago', etiquetaMetodo(vfMetodoPago)],
+          ['Recibió en caja', vfRecibidoPor],
+        ]}
+        textoConfirmar="Sí, registrar venta"
+        onCancelar={() => setConfirmarVenta(false)}
+        onConfirmar={async () => { setConfirmarVenta(false); await handleVentaFisica() }} />
     </div>
   )
 }
