@@ -221,8 +221,9 @@ export default function OrdersPage() {
     if (vfPagado === '' || Number(vfPagado) < 0 || (Number(vfPagado) === 0 && !vfDebe)) e.pagado = 'Ingresa cuánto pagó el cliente'
     if (vfDebe && !(Number(vfMontoDebe) > 0)) e.montoDebe = 'Ingresa cuánto quedó debiendo'
     else if (vfDebe && Number(vfMontoDebe) > vfTotal) e.montoDebe = 'No puede ser mayor que el total de la venta'
-    if (!vfMetodoPago) e.metodoPago = 'Elige si pagó en efectivo o por transferencia'
-    if (!vfRecibidoPor) e.recibidoPor = 'Elige quién recibió en caja'
+    // Si el cliente quedó debiendo, la forma de pago y quién recibió son opcionales
+    if (!vfDebe && !vfMetodoPago) e.metodoPago = 'Elige si pagó en efectivo o por transferencia'
+    if (!vfDebe && !vfRecibidoPor) e.recibidoPor = 'Elige quién recibió en caja'
     setVfErrors(e)
     return Object.keys(e).length === 0
   }
@@ -243,8 +244,8 @@ export default function OrdersPage() {
       const clave = nuevaClave()
       const pago = {
         totalPagado: Number(vfPagado),
-        metodoPago: vfMetodoPago,
-        recibidoPor: vfRecibidoPor,
+        metodoPago: vfMetodoPago || null,
+        recibidoPor: vfRecibidoPor || null,
         montoDeuda: vfDebe ? Number(vfMontoDebe) : null,
       }
       const items = vfItems.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, tipoPrecio: i.tipoPrecio }))
@@ -772,7 +773,7 @@ export default function OrdersPage() {
                     // Sugerencia: lo que falta para completar el total
                     if (on && vfMontoDebe === '' && vfPagado !== '' && Number(vfPagado) < vfTotal) setVfMontoDebe(String(vfTotal - Number(vfPagado)))
                     if (!on) setVfMontoDebe('')
-                    setVfErrors(er => ({ ...er, montoDebe: '', pagado: '' }))
+                    setVfErrors(er => ({ ...er, montoDebe: '', pagado: '', ...(on ? { metodoPago: '', recibidoPor: '' } : {}) }))
                   }} />
                 <span aria-hidden="true" className={`relative inline-block w-9 h-5 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 ${vfDebe ? 'bg-red-500' : 'bg-gray-400/40'}`}>
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${vfDebe ? 'translate-x-4' : ''}`} />
@@ -797,7 +798,7 @@ export default function OrdersPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div>
-            <p className="text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Forma de pago *</p>
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Forma de pago {vfDebe ? '(opcional)' : '*'}</p>
             <div role="radiogroup" aria-label="Forma de pago" className="flex rounded-xl overflow-hidden text-sm font-bold"
               style={{ border: '1px solid ' + (vfErrors.metodoPago ? '#ef4444' : 'var(--bd-1)') }}>
               {METODOS_PAGO.map(([valor, label]) => (
@@ -812,7 +813,7 @@ export default function OrdersPage() {
             {vfErrors.metodoPago && <p className="mt-0.5 text-xs text-red-500">{vfErrors.metodoPago}</p>}
           </div>
           <div>
-            <label htmlFor="vf-recibido" className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Recibió en caja *</label>
+            <label htmlFor="vf-recibido" className="block text-xs font-medium mb-1" style={{ color: 'var(--tx-2)' }}>Recibió en caja {vfDebe ? '(opcional)' : '*'}</label>
             <select id="vf-recibido" value={vfRecibidoPor} onChange={e => { setVfRecibidoPor(e.target.value); setVfErrors(er => ({ ...er, recibidoPor: '' })) }}
               className="w-full px-3 py-2 rounded-xl text-sm outline-none"
               style={{ backgroundColor: 'var(--bg-input)', border: '1px solid ' + (vfErrors.recibidoPor ? '#ef4444' : 'var(--bd-1)'), color: 'var(--tx-1)' }}>
