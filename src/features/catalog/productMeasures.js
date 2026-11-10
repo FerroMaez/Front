@@ -351,6 +351,7 @@ const MEDIDAS_EXCEL = {
     "4 X 2",
     "4 X 2 1/2\"",
     "4 X 3",
+    "6\" X 2\"",
     "6 X 3",
     "6 X 4"
   ],
@@ -366,7 +367,13 @@ const MEDIDAS_EXCEL = {
   ],
   "COLLARIN PVC": [
     "3\"",
-    "4\""
+    "3\" X 1/2\"",
+    "3\" X 3/4\"",
+    "4\"",
+    "4\" X 1/2\""
+  ],
+  "TAPA BRIDADA PVC": [
+    "2\""
   ],
   "BRIDA PVC": [
     "1/2\"",
@@ -386,6 +393,7 @@ const MEDIDAS_EXCEL = {
     "6\""
   ],
   "REGISTRO PVC": [
+    "3/4\"",
     "1\"",
     "1 1/4\"",
     "1 1/2\"",
@@ -398,6 +406,8 @@ const MEDIDAS_EXCEL = {
     "2\""
   ],
   "REGISTRO PVC UNIVERSAL": [
+    "1/2\"",
+    "3/4\"",
     "1\"",
     "1 1/2\"",
     "2\"",
@@ -859,6 +869,15 @@ const ALIAS_PRODUCTO = {
   'PVC|UNION UNIVERSAL': 'UNIVERSAL PVC',
   'PVC|TAPON HEMBRA': 'TAPON PVC',
   'PVC|TUBERIA': 'TUBO PVC PRESION',
+  'PVC|UNION': 'UNION PVC',
+  'PVC|SEMICODO': 'SEMI CODO PVC',
+  'PVC|ADAPTADOR HEMBRA': 'ADAPTADOR HEMBRA PVC',
+  'PVC|CRUZ': 'CRUZ PVC',
+  'PVC|COLLARIN': 'COLLARIN PVC',
+  'PVC|TAPA BRIDADA': 'TAPA BRIDADA PVC',
+  'PVC|REGISTRO': 'REGISTRO PVC',
+  'PVC|REGISTRO UNIVERSAL': 'REGISTRO PVC UNIVERSAL',
+  'PVC|UNION MACHO': 'UNION PVC ROSCADA MACHO',
   'PVC|LIMPIADOR': 'LIMPIADOR PAVCO',
   'PVC|SOLDADURA': 'PEGANTE SOLDADURA PAVCO',
   // Hoja "CORRECIONES PAGINA" (noviembre 2026)
