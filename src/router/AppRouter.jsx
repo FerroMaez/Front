@@ -26,6 +26,7 @@ import OrdersPage        from '../pages/backoffice/orders/OrdersPage'
 import HistoricosPage    from '../pages/backoffice/historicos/HistoricosPage'
 import ClientesPage      from '../pages/backoffice/clientes/ClientesPage'
 import DeudoresPage      from '../pages/backoffice/deudores/DeudoresPage'
+import MovimientosPage   from '../pages/backoffice/movimientos/MovimientosPage'
 import NotificationsPage from '../pages/backoffice/notifications/NotificationsPage'
 import AsistenciaPage from '../pages/backoffice/asistencia/AsistenciaPage'
 import MiAsistenciaPage from '../pages/backoffice/asistencia/MiAsistenciaPage'
@@ -99,6 +100,7 @@ export default function AppRouter() {
           <Route path="historicos"    element={<RequireJefe><HistoricosPage /></RequireJefe>} />
           <Route path="clientes"      element={<RequireJefe><ClientesPage /></RequireJefe>} />
           <Route path="deudores"      element={<RequireJefe><DeudoresPage /></RequireJefe>} />
+          <Route path="movimientos"   element={<RequireJefe><MovimientosPage /></RequireJefe>} />
           <Route path="notificaciones" element={<RequireJefe><NotificationsPage /></RequireJefe>} />
           <Route path="asistencia"    element={<RequireJefe><AsistenciaPage /></RequireJefe>} />
           <Route path="mi-asistencia" element={<RequireEmpleado><MiAsistenciaPage /></RequireEmpleado>} />

@@ -6,6 +6,7 @@ import { catalogProducts } from '../../../features/catalog/catalogData'
 import { getMedidasProducto } from '../../../features/catalog/productMeasures'
 import { formatCOP } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import imagenHidraulica from '../../../assets/lineas/hidraulica.jpeg'
 import imagenIncendio from '../../../assets/lineas/incendio.jpeg'
 import imagenAcueducto from '../../../assets/lineas/acueducto.jpeg'
@@ -129,6 +130,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   const [toast,       setToast]       = useState('')
   const [errorStock, setErrorStock] = useState('')
   const [cantidadAgregar, setCantidadAgregar] = useState('')
+  const [confirmacion, setConfirmacion] = useState(null)   // { titulo, mensaje, detalles, textoConfirmar, accion }
 
   const load = useCallback(async () => {
     try {
@@ -272,6 +274,66 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     } finally {
       setLoading(false)
     }
+  }
+
+  // Confirmación final antes de guardar: muestra el resumen y solo entonces ejecuta
+  const nombreConMedida = (n, m) => `${n || ''}${m ? ` ${m}` : ''}`
+  const confirmarGuardar = () => {
+    if (!validate()) return
+    const nombre = nombreConMedida(form.nombre, form.pulgadas)
+    const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)?.label
+    if (esHistorial) {
+      setConfirmacion({
+        titulo: `¿Agregar a ${titulo}?`,
+        mensaje: `Se agregarán ${form.cantidad} und. de ${nombre} a ${titulo}.`,
+        detalles: [['Producto', nombre], ['Línea', linea], ['Condición', etiquetaCondicion(condicionPorLinea(form.linea_servicio))], ['Cantidad', `${form.cantidad} und.`]],
+        textoConfirmar: `Sí, agregar a ${titulo}`,
+        accion: handleSave,
+      })
+      return
+    }
+    const reman = form.condicion === 'REMANUFACTURADO'
+    const detalles = [
+      ['Producto', nombre], ['Línea', linea], ['Condición', etiquetaCondicion(form.condicion)],
+      [reman ? 'Precio' : 'Precio económico', formatCOP(Number(form.precio_unitario))],
+      ['Precio pesado', reman ? null : formatCOP(Number(form.precio_pesado))],
+      ['Valor de adquisición', formatCOP(Number(form.valor_adquisicion))],
+    ]
+    if (modal === 'create') {
+      setConfirmacion({
+        titulo: '¿Crear el producto en Inventario?',
+        mensaje: `Se creará ${nombre} con ${form.stock_disponible} und.`,
+        detalles: [...detalles, ['Stock inicial', `${form.stock_disponible} und.`], ['Stock mínimo', form.stock_minimo]],
+        textoConfirmar: 'Sí, crear producto',
+        accion: handleSave,
+      })
+    } else {
+      const suma = Number(cantidadAgregar) || 0
+      setConfirmacion({
+        titulo: '¿Guardar los cambios?',
+        mensaje: `Se actualizará ${nombre}${suma > 0 ? ` y se sumarán ${suma} und. al stock` : ''}.`,
+        detalles: [...detalles, ['Stock mínimo', form.stock_minimo], ['Unidades a sumar', suma > 0 ? `${suma} und.` : null]],
+        textoConfirmar: 'Sí, guardar cambios',
+        accion: handleSave,
+      })
+    }
+  }
+  const confirmarTraspaso = (p) => {
+    const n = cantidadAMover(p)
+    const nombre = nombreConMedida(p.nombre, p.pulgadas)
+    setConfirmacion(esBodega ? {
+      titulo: '¿Pasar a Arreglos?',
+      mensaje: `Se pasarán ${unidades(n)} de ${nombre} de Bodega a Arreglos.`,
+      detalles: [['Producto', nombre], ['Cantidad', unidades(n)], ['Quedan en Bodega', unidades(p.stock_disponible - n)]],
+      textoConfirmar: 'Sí, pasar a Arreglos',
+      accion: () => transferirAArreglos(p),
+    } : {
+      titulo: '¿Sumar al Inventario?',
+      mensaje: `Se sumarán ${unidades(n)} de ${nombre} al Inventario y saldrán de Arreglos.`,
+      detalles: [['Producto', nombre], ['Condición', etiquetaCondicion(p.condicion)], ['Cantidad', unidades(n)], ['Quedan en Arreglos', unidades(p.stock_disponible - n)]],
+      textoConfirmar: 'Sí, sumar al Inventario',
+      accion: () => transferirAlInventario(p),
+    })
   }
 
   // Cuántas unidades mover en cada fila de Bodega/Arreglos (por defecto, todas)
@@ -481,7 +543,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                                 className="w-16 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
                                 style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
                             )}
-                            <button type="button" onClick={() => (esBodega ? transferirAArreglos(p) : transferirAlInventario(p))}
+                            <button type="button" onClick={() => confirmarTraspaso(p)}
                               disabled={loading || p.stock_disponible <= 0}
                               className="btn-primary text-xs px-3 py-2 whitespace-nowrap disabled:opacity-50">
                               {esBodega ? `Pasar ${cantidadAMover(p)} a arreglos` : `Sumar ${cantidadAMover(p)} al inventario`}
@@ -873,7 +935,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
 
           {/* ── Botones ── */}
           <div className="flex gap-3 pt-1">
-            <button onClick={handleSave}
+            <button onClick={confirmarGuardar}
               disabled={loading || (modal === 'edit' && !selected)}
               className="btn-primary flex-1 justify-center py-2.5 disabled:opacity-50">
               {saveLabel}
@@ -882,6 +944,11 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog abierto={!!confirmacion} titulo={confirmacion?.titulo || ''} mensaje={confirmacion?.mensaje}
+        detalles={confirmacion?.detalles} textoConfirmar={confirmacion?.textoConfirmar} cargando={loading}
+        onCancelar={() => setConfirmacion(null)}
+        onConfirmar={async () => { const c = confirmacion; setConfirmacion(null); await c.accion() }} />
     </div>
   )
 }

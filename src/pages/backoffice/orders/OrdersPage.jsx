@@ -9,6 +9,7 @@ import { clienteService } from '../../../services/api/clienteService'
 import { cajeroService, deudaService } from '../../../services/api/deudaService'
 import { formatCOP, formatDate, formatDateTime } from '../../../utils/formatters'
 import Modal from '../../../components/ui/Modal'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { websocketService } from '../../../services/api/websocketService'
 import { encolarVenta, esErrorDeRed, nuevaClave, ventasOfflineSync } from '../../../services/offline/ventasOfflineSync'
 import VentasOfflinePanel from './VentasOfflinePanel'
@@ -62,6 +63,7 @@ export default function OrdersPage() {
   const [vfDebe,          setVfDebe]          = useState(false)
   const [vfMontoDebe,     setVfMontoDebe]     = useState('')
   const [cajeros,         setCajeros]         = useState([])
+  const [confirmarVenta,  setConfirmarVenta]  = useState(false)
   const [deudas,          setDeudas]          = useState(null)    // órdenes con saldo pendiente (null: sin permiso)
   const [vfBusqueda,      setVfBusqueda]      = useState('')
   const [vfErrors,        setVfErrors]        = useState({})
@@ -886,13 +888,28 @@ export default function OrdersPage() {
           <button onClick={() => setVfPaso(1)} className="btn-outline py-2.5 px-4 text-sm font-bold">
             ← Volver
           </button>
-          <button onClick={handleVentaFisica} disabled={loadingVF}
+          <button onClick={() => { if (validarCliente()) setConfirmarVenta(true) }} disabled={loadingVF}
             className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-brand-600 hover:bg-brand-500 text-white transition-colors disabled:opacity-50">
             {loadingVF ? 'Registrando…' : 'Confirmar Venta Física'}
           </button>
           <button onClick={() => setVfOpen(false)} className="btn-outline py-2.5 px-4 text-sm font-bold">Cancelar</button>
         </div>
       </Modal>
+
+      <ConfirmDialog abierto={confirmarVenta} titulo="¿Registrar la venta física?" cargando={loadingVF}
+        mensaje="Al confirmar se descuenta el stock y la venta queda registrada."
+        detalles={[
+          ['Cliente', vfCliente.nombre],
+          ['Productos', `${vfItems.length} producto(s) · ${vfItems.reduce((s, i) => s + i.cantidad, 0)} und.`],
+          ['Total', formatCOP(vfTotal)],
+          ['Pagado', vfPagado !== '' ? formatCOP(Number(vfPagado)) : null],
+          ['Debe', vfDebe ? formatCOP(Number(vfMontoDebe)) : null],
+          ['Forma de pago', etiquetaMetodo(vfMetodoPago)],
+          ['Recibió en caja', vfRecibidoPor],
+        ]}
+        textoConfirmar="Sí, registrar venta"
+        onCancelar={() => setConfirmarVenta(false)}
+        onConfirmar={async () => { setConfirmarVenta(false); await handleVentaFisica() }} />
     </div>
   )
 }
