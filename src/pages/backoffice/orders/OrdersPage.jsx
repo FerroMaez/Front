@@ -66,6 +66,8 @@ export default function OrdersPage() {
   const [confirmarVenta,  setConfirmarVenta]  = useState(false)
   const [deudas,          setDeudas]          = useState(null)    // órdenes con saldo pendiente (null: sin permiso)
   const [vfBusqueda,      setVfBusqueda]      = useState('')
+  const [vfMedida,        setVfMedida]        = useState('')      // filtro de medida en el paso 1
+  const [vfCondicion,     setVfCondicion]     = useState('')      // NUEVO | REMANUFACTURADO
   const [vfErrors,        setVfErrors]        = useState({})
   const [loadingVF,       setLoadingVF]       = useState(false)
   const [exportLoading,   setExportLoading]   = useState(false)
@@ -119,6 +121,8 @@ export default function OrdersPage() {
     setVfDebe(false)
     setVfMontoDebe('')
     setVfBusqueda('')
+    setVfMedida('')
+    setVfCondicion('')
     setVfErrors({})
     // Se guarda una copia del catálogo para poder vender aunque se caiga el internet.
     productService.getAll()
@@ -153,12 +157,29 @@ export default function OrdersPage() {
   const stockVendible = (p) => Math.max(0,
     (p.stock_disponible ?? 0) - (p.stock_reservado ?? 0) - (reservadoOffline[p.id] || 0))
 
-  // Buscador de la venta física: por nombre o medida, sin importar tildes ni mayúsculas.
+  // Buscador de la venta física: cada palabra debe aparecer en el nombre, la medida o la
+  // condición (en cualquier orden), sin importar tildes ni mayúsculas. Ej: "registro univ 2".
   const normalizar = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-  const textoVf = normalizar(vfBusqueda)
-  const productosVisibles = textoVf
-    ? productos.filter(p => normalizar(`${p.nombre} ${p.pulgadas || ''}`).includes(textoVf))
-    : productos
+  const palabrasVf = normalizar(vfBusqueda).split(/\s+/).filter(Boolean)
+  const textoProducto = (p) => normalizar(`${p.nombre} ${p.pulgadas || ''} ${p.condicion === 'REMANUFACTURADO' ? 'remanufacturado' : 'nuevo'}`)
+  const coincideBusqueda = (p) => palabrasVf.every(w => textoProducto(p).includes(w))
+  const coincideCondicion = (p) => !vfCondicion || p.condicion === vfCondicion
+  const productosVisibles = productos.filter(p => coincideBusqueda(p) && coincideCondicion(p)
+    && (!vfMedida || (p.pulgadas || '') === vfMedida))
+  // Medidas del filtro: solo las de los productos que coinciden con la búsqueda y la condición
+  const valorPulgada = (t) => {
+    const m = String(t).replace(/["”″]/g, '').trim().match(/^(\d+(?:[.,]\d+)?)?(?:\s+|-)?(?:(\d+)\/(\d+))?$/)
+    return !m || (!m[1] && !m[2]) ? NaN : (m[1] ? Number(m[1].replace(',', '.')) : 0) + (m[2] ? Number(m[2]) / Number(m[3]) : 0)
+  }
+  const claveMedida = (m) => { const v = String(m || '').split(/\s*[xX×]\s*/).map(valorPulgada); return v.every(n => !Number.isNaN(n)) ? v : [Infinity] }
+  const medidasVf = [...new Set(productos.filter(p => coincideBusqueda(p) && coincideCondicion(p)).map(p => p.pulgadas || ''))]
+    .filter(Boolean)
+    .sort((a, b) => {
+      const ka = claveMedida(a), kb = claveMedida(b)
+      for (let i = 0; i < Math.max(ka.length, kb.length); i++) { const d = (ka[i] ?? -1) - (kb[i] ?? -1); if (d) return d }
+      return a.localeCompare(b)
+    })
+  const hayFiltrosVf = vfBusqueda || vfMedida || vfCondicion
 
   // Cada producto se vende al precio económico (por defecto) o al pesado.
   const tipoPrecioDe = (id) => tiposPrecio[id] || 'ECONOMICO'
@@ -618,77 +639,105 @@ export default function OrdersPage() {
           Selecciona los productos y las cantidades que compró el cliente.
         </p>
 
-        <div className="relative mb-3">
-          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2" size={12} style={{ color: 'var(--tx-3)' }} />
-          <input type="search" value={vfBusqueda} onChange={e => setVfBusqueda(e.target.value)}
-            placeholder="¿No lo encuentras? Escribe el nombre o la medida…" aria-label="Buscar producto"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm outline-none"
-            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2" size={12} style={{ color: 'var(--tx-3)' }} />
+            <input type="search" value={vfBusqueda} onChange={e => setVfBusqueda(e.target.value)}
+              placeholder="Buscar: ej. registro univ 2" aria-label="Buscar producto"
+              className="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+          </div>
+          <select value={vfMedida} onChange={e => setVfMedida(e.target.value)} aria-label="Filtrar por medida"
+            className="w-36 px-3 py-2 rounded-xl text-sm outline-none"
+            style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${vfMedida ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+            <option value="">Toda medida</option>
+            {[...new Set([...(vfMedida ? [vfMedida] : []), ...medidasVf])].map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={vfCondicion} onChange={e => setVfCondicion(e.target.value)} aria-label="Filtrar por condición"
+            className="w-40 px-3 py-2 rounded-xl text-sm outline-none"
+            style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${vfCondicion ? 'rgba(140,144,59,0.6)' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
+            <option value="">Toda condición</option>
+            <option value="NUEVO">Nuevo</option>
+            <option value="REMANUFACTURADO">Remanufacturado</option>
+          </select>
+          {hayFiltrosVf && (
+            <button type="button" onClick={() => { setVfBusqueda(''); setVfMedida(''); setVfCondicion('') }}
+              className="px-2 py-2 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline whitespace-nowrap">
+              Limpiar
+            </button>
+          )}
         </div>
+        {hayFiltrosVf && productos.length > 0 && (
+          <p className="mb-2 text-[11px]" style={{ color: 'var(--tx-3)' }}>{productosVisibles.length} de {productos.length} productos</p>
+        )}
 
         {productos.length === 0 && (
           <div className="text-center py-8" style={{ color: 'var(--tx-3)' }}>Cargando productos…</div>
         )}
         {productos.length > 0 && productosVisibles.length === 0 && (
           <div className="text-center py-8 text-sm" style={{ color: 'var(--tx-3)' }}>
-            No hay productos que coincidan con &quot;{vfBusqueda}&quot;.
+            No hay productos con esa búsqueda{vfMedida ? ` en ${vfMedida}` : ''}{vfCondicion ? (vfCondicion === 'NUEVO' ? ' nuevos' : ' remanufacturados') : ''}.
           </div>
         )}
         {productosVisibles.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto pr-1 mb-4">
+          <div className="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-1 mb-4">
             {productosVisibles.map(p => {
               const stock = stockVendible(p)
               const bajo  = stock <= (p.stock_minimo ?? 0)
               return (
-              <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border transition-colors"
+              <div key={p.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 px-3 py-2.5 rounded-xl border transition-colors"
                 style={{ backgroundColor: 'var(--bg-surface)', borderColor: cantidades[p.id] ? 'rgba(140,144,59,0.5)' : 'var(--bd-1)', opacity: stock > 0 ? 1 : 0.5 }}>
-                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
-                  <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-1" onError={e => { e.target.src = '/newLogo3.jpeg' }} />
+                <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--bd-1)' }}>
+                  <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-0.5" onError={e => { e.target.src = '/newLogo3.jpeg' }} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>
-                    {p.nombre}
-                    {p.pulgadas && <span className="ml-1.5 text-xs font-medium" style={{ color: 'var(--tx-3)' }}>{p.pulgadas}</span>}
-                    <span className={`ml-2 align-middle px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${p.condicion === 'REMANUFACTURADO'
+                {/* Nombre, medida, condición y stock en una sola línea */}
+                <div className="flex-1 min-w-[200px]">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                    <span className="text-sm font-semibold sm:truncate" style={{ color: 'var(--tx-1)' }} title={p.nombre}>{p.nombre}</span>
+                    {p.pulgadas && <span className="text-sm font-semibold whitespace-nowrap flex-shrink-0 text-brand-600 dark:text-brand-300">{p.pulgadas}</span>}
+                    <span className={`flex-shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${p.condicion === 'REMANUFACTURADO'
                       ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300' : 'bg-sky-500/15 text-sky-600 dark:text-sky-300'}`}>
-                      {p.condicion === 'REMANUFACTURADO' ? 'Remanufacturado' : 'Nuevo'}
+                      {p.condicion === 'REMANUFACTURADO' ? 'Reman.' : 'Nuevo'}
                     </span>
-                  </p>
-                  <p className={`text-xs font-semibold mt-0.5 ${bajo ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
-                    Stock: {stock} und.{bajo && stock > 0 ? ' · bajo' : ''}{stock === 0 ? ' · agotado' : ''}
-                  </p>
+                    <span className={`flex-shrink-0 whitespace-nowrap text-xs font-semibold ${bajo ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
+                      · {stock} und.{stock === 0 ? ' agotado' : bajo ? ' bajo' : ''}
+                    </span>
+                  </div>
                   {(reservadoOffline[p.id] || 0) > 0 && (
                     <p className="text-[11px]" style={{ color: 'var(--tx-3)' }}>
                       {reservadoOffline[p.id]} und. en ventas sin sincronizar
                     </p>
                   )}
-                  {p.condicion === 'REMANUFACTURADO' ? (
-                    <p className="mt-1.5 text-[11px] font-semibold" style={{ color: 'var(--tx-2)' }}>
-                      Remanufacturado · {formatCOP(p.precio_unitario)}
-                    </p>
-                  ) : (
-                  <div role="radiogroup" aria-label={'Precio de ' + p.nombre} className="mt-1.5 inline-flex rounded-lg overflow-hidden text-[11px] font-semibold"
-                    style={{ border: '1px solid var(--bd-1)' }}>
-                    {[['ECONOMICO', 'Económico', p.precio_unitario, true], ['PESADO', 'Pesado', p.precio_pesado, tienePesado(p)]].map(([valor, etiqueta, precio, habilitado]) => {
-                      const activo = tipoPrecioDe(p.id) === valor
-                      return (
-                        <button key={valor} type="button" role="radio" aria-checked={activo} disabled={!habilitado || stock === 0}
-                          title={habilitado ? undefined : 'Este producto no tiene precio pesado'}
-                          onClick={() => setTiposPrecio(t => ({ ...t, [p.id]: valor }))}
-                          className={`px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activo ? 'bg-brand-600 text-white' : 'hover:bg-brand-500/10'}`}
-                          style={activo ? undefined : { color: 'var(--tx-2)' }}>
-                          {etiqueta} {habilitado ? formatCOP(precio) : '—'}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  )}
                 </div>
+                {/* Precio y cantidad: siempre juntos */}
+                <div className="flex items-center justify-between gap-2 sm:gap-3 w-full sm:w-auto sm:ml-auto flex-shrink-0">
+                {p.condicion === 'REMANUFACTURADO' ? (
+                  <span className="flex-shrink-0 whitespace-nowrap px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold" style={{ color: 'var(--tx-2)', border: '1px solid var(--bd-1)' }}>
+                    Precio {formatCOP(p.precio_unitario)}
+                  </span>
+                ) : (
+                <div role="radiogroup" aria-label={'Precio de ' + p.nombre} className="flex-shrink min-w-0 inline-flex rounded-lg overflow-hidden text-[10px] sm:text-[11px] font-semibold"
+                  style={{ border: '1px solid var(--bd-1)' }}>
+                  {[['ECONOMICO', 'Económico', p.precio_unitario, true], ['PESADO', 'Pesado', p.precio_pesado, tienePesado(p)]].map(([valor, etiqueta, precio, habilitado]) => {
+                    const activo = tipoPrecioDe(p.id) === valor
+                    return (
+                      <button key={valor} type="button" role="radio" aria-checked={activo} disabled={!habilitado || stock === 0}
+                        title={habilitado ? undefined : 'Este producto no tiene precio pesado'}
+                        onClick={() => setTiposPrecio(t => ({ ...t, [p.id]: valor }))}
+                        className={`px-1.5 sm:px-2 py-1 whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activo ? 'bg-brand-600 text-white' : 'hover:bg-brand-500/10'}`}
+                        style={activo ? undefined : { color: 'var(--tx-2)' }}>
+                        {etiqueta} {habilitado ? formatCOP(precio) : '—'}
+                      </button>
+                    )
+                  })}
+                </div>
+                )}
                 <input aria-label={'Cantidad de ' + p.nombre} type="number" min="0" max={stock} step="1"
                   value={cantidades[p.id] || ''} placeholder="0" disabled={stock === 0}
                   onChange={e => setQty(p.id, Math.min(Math.max(0, +e.target.value), stock))}
-                  className="w-20 px-2 py-1.5 rounded-lg text-sm text-center outline-none"
+                  className="w-16 sm:w-20 flex-shrink-0 px-2 py-1.5 rounded-lg text-sm text-center outline-none"
                   style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
+                </div>
               </div>
               )
             })}
