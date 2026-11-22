@@ -115,6 +115,9 @@ function BuscadorProductos({ value, onChange, placeholder }) {
 export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 'Inventario' }) {
   const esHistorial = tipoInventario !== 'INVENTARIO'
   const esBodega    = tipoInventario === 'BODEGA'
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- se inicializa en la misma posición siempre
+  const [pendienteTraspaso, setPendienteTraspaso] = useState(null)
+  const esFormHistorial = esHistorial && !pendienteTraspaso
   const [busqueda,    setBusqueda]    = useState('')   // buscador del modal agregar/editar
   const [products,    setProducts]    = useState([])
   const [search,      setSearch]      = useState('')
@@ -150,6 +153,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   const openCreate = () => {
     setForm({ ...emptyForm, tipo_inventario: tipoInventario }); setErrors({}); setErrorStock(''); setCantidadAgregar('')
     setBusqueda('')
+    setPendienteTraspaso(null)
     setModal('create')
   }
 
@@ -206,7 +210,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   }
 
   const validate = () => {
-    const e = buildErrors(form, esHistorial, opcionesMedida.length > 0)
+    const e = buildErrors(form, esFormHistorial, opcionesMedida.length > 0)
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -216,7 +220,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     setLoading(true)
     try {
       const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)
-      if (esHistorial) {
+      if (esFormHistorial) {
         const cantidad = Number(form.cantidad)
         const payloadArreglo = {
           ...form,
@@ -247,7 +251,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
       }
       const payload = {
         ...form,
-        tipo_inventario: tipoInventario,
+        tipo_inventario: pendienteTraspaso ? 'INVENTARIO' : tipoInventario,
         precio_unitario:  Number(form.precio_unitario),
         precio_pesado:    form.condicion === 'REMANUFACTURADO' ? null : Number(form.precio_pesado),
         valor_adquisicion: Number(form.valor_adquisicion),
@@ -256,7 +260,33 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         linea_label:      linea?.label || '',
       }
       if (modal === 'create') {
-        await productService.create(payload)
+        const nuevo = await productService.create(payload)
+        if (pendienteTraspaso) {
+          const arreglo = pendienteTraspaso
+          setPendienteTraspaso(null)
+          setModal(null)
+          await load()
+          const n = cantidadAMover(arreglo)
+          const nombre = `${arreglo.nombre || ''}${arreglo.pulgadas ? ` ${arreglo.pulgadas}` : ''}`
+          setConfirmacion({
+            titulo: '¿Sumar al Inventario?',
+            mensaje: `Producto creado. ¿Sumar ${unidades(n)} de ${nombre} al Inventario?`,
+            detalles: [['Producto', nombre], ['Condición', etiquetaCondicion(arreglo.condicion)], ['Cantidad', unidades(n)]],
+            textoConfirmar: 'Sí, sumar al Inventario',
+            accion: async () => {
+              setLoading(true)
+              try {
+                await productService.transferArrangement(arreglo.id, nuevo.id, n)
+                showToast(`Se ${n === 1 ? 'sumó' : 'sumaron'} ${unidades(n)} al Inventario.`)
+                setAMover(m => ({ ...m, [arreglo.id]: undefined }))
+                await load()
+              } catch (err) {
+                showToast(err.response?.data?.error || 'No se pudo hacer el traspaso.')
+              } finally { setLoading(false) }
+            },
+          })
+          return
+        }
         showToast('Producto creado exitosamente.')
       } else {
         const incremento = cantidadAgregar === '' ? 0 : Number(cantidadAgregar)
@@ -282,7 +312,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
     if (!validate()) return
     const nombre = nombreConMedida(form.nombre, form.pulgadas)
     const linea = LINEAS_SERVICIO.find(l => l.value === form.linea_servicio)?.label
-    if (esHistorial) {
+    if (esFormHistorial) {
       setConfirmacion({
         titulo: `¿Agregar a ${titulo}?`,
         mensaje: `Se agregarán ${form.cantidad} und. de ${nombre} a ${titulo}.`,
@@ -374,7 +404,26 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
         && (p.pulgadas || '') === (arreglo.pulgadas || '')
         && p.condicion === arreglo.condicion)
       if (!destino) {
-        showToast('Crea primero en Inventario el producto con la misma línea, medida y condición.')
+        setForm({
+          ...emptyForm,
+          tipo_inventario: 'INVENTARIO',
+          linea_servicio: arreglo.linea_servicio || '',
+          nombre: arreglo.nombre || '',
+          imagen_url: arreglo.imagen_url || '',
+          pulgadas: arreglo.pulgadas || '',
+          condicion: arreglo.condicion || '',
+          categoria: arreglo.categoria || '',
+          descripcion: arreglo.descripcion || '',
+          stock_disponible: '0',
+          stock_minimo: '0',
+          precio_unitario: '',
+          precio_pesado: '',
+          valor_adquisicion: '',
+        })
+        setErrors({}); setErrorStock(''); setCantidadAgregar(''); setBusqueda('')
+        setPendienteTraspaso(arreglo)
+        setModal('create')
+        showToast('Crea el producto en Inventario. Al terminar se hará el traspaso.')
         return
       }
       const cantidad = cantidadAMover(arreglo)
@@ -421,7 +470,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
   // Etiqueta de guardado (sin ternarios anidados)
   let saveLabel = 'Guardar cambios'
   if (loading)              saveLabel = 'Guardando…'
-  else if (modal === 'create') saveLabel = esHistorial ? `Agregar a ${titulo}` : 'Crear producto'
+  else if (modal === 'create') saveLabel = pendienteTraspaso ? 'Crear y traspasar' : (esHistorial ? `Agregar a ${titulo}` : 'Crear producto')
 
   return (
     <div>
@@ -594,8 +643,8 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
           MODAL CREAR / EDITAR
       ═══════════════════════════════════════════ */}
       <Modal isOpen={modal === 'create' || modal === 'edit'}
-        onClose={() => setModal(null)}
-        title={esHistorial ? `Agregar producto a ${titulo}` : (modal === 'create' ? 'Agregar producto al Inventario' : selected ? 'Editar: ' + selected.nombre : 'Editar producto')}
+        onClose={() => { setModal(null); setPendienteTraspaso(null) }}
+        title={esHistorial ? `Agregar producto a ${titulo}` : (modal === 'create' ? (pendienteTraspaso ? 'Crear producto para traspaso' : 'Agregar producto al Inventario') : selected ? 'Editar: ' + selected.nombre : 'Editar producto')}
         size="xl">
         <div className="space-y-6">
 
@@ -771,23 +820,23 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 <span className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center font-bold flex-shrink-0">
                   {modal === 'create' ? '3' : '2'}
                 </span>
-                {esHistorial ? 'Datos del producto' : 'Datos del inventario'}
+                {esFormHistorial ? 'Datos del producto' : 'Datos del inventario'}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="inv-medida" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
-                    Medida (pulgadas) {!esHistorial && opcionesMedida.length > 0 && <span className="text-red-500">*</span>}
+                    Medida (pulgadas) {!esFormHistorial && opcionesMedida.length > 0 && <span className="text-red-500">*</span>}
                   </label>
                   <select id="inv-medida" value={form.pulgadas} onChange={e => { setForm(f => ({ ...f, pulgadas: e.target.value })); setErrors(er => ({ ...er, pulgadas: '' })) }}
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none"
                     style={{ backgroundColor: 'var(--bg-input)', border: `1px solid ${errors.pulgadas ? '#ef4444' : 'var(--bd-1)'}`, color: 'var(--tx-1)' }}>
-                    <option value="">{opcionesMedida.length ? (esHistorial ? 'Sin medida' : 'Selecciona la medida') : 'Este producto no tiene medidas configuradas'}</option>
+                    <option value="">{opcionesMedida.length ? (esFormHistorial ? 'Sin medida' : 'Selecciona la medida') : 'Este producto no tiene medidas configuradas'}</option>
                     {opcionesMedida.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                   {errors.pulgadas && <p className="mt-0.5 text-[10px] text-red-500">{errors.pulgadas}</p>}
                 </div>
-                {esHistorial ? (
+                {esFormHistorial ? (
                   <div className="flex flex-col justify-center">
                     <span className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Condición</span>
                     <span className="text-sm" style={{ color: 'var(--tx-1)' }}>
@@ -809,7 +858,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   {errors.condicion && <p className="mt-0.5 text-[10px] text-red-500">{errors.condicion}</p>}
                 </div>
                 )}
-                {esHistorial && (
+                {esFormHistorial && (
                   <div>
                     <label htmlFor="inv-cantidad-arreglo" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Cantidad <span className="text-red-500">*</span></label>
                     <input id="inv-cantidad-arreglo" type="number" min="1" step="1" inputMode="numeric" value={form.cantidad}
@@ -820,7 +869,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   </div>
                 )}
                 {/* Precio */}
-{!esHistorial && (
+{!esFormHistorial && (
                 <div>
                   <label htmlFor="inv-precio" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     {form.condicion === 'REMANUFACTURADO' ? 'Precio' : 'Precio económico'} (COP) <span className="text-red-500">*</span>
@@ -833,7 +882,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   {errors.precio_unitario && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_unitario}</p>}
                 </div>
                 )}
-{!esHistorial && form.condicion !== 'REMANUFACTURADO' && (
+{!esFormHistorial && form.condicion !== 'REMANUFACTURADO' && (
                 <div>
                   <label htmlFor="inv-precio-pesado" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     Precio pesado (COP) <span className="text-red-500">*</span>
@@ -846,7 +895,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                   {errors.precio_pesado && <p className="mt-0.5 text-[10px] text-red-500">{errors.precio_pesado}</p>}
                 </div>
                 )}
-{!esHistorial && (
+{!esFormHistorial && (
                 <div>
                   <label htmlFor="inv-adquisicion" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     Valor de adquisición (COP) <span className="text-red-500">*</span>
@@ -863,7 +912,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 )}
 
                 {/* Stock disponible */}
-{!esHistorial && (
+{!esFormHistorial && (
                 <div>
                   <label htmlFor="inv-stock" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     {modal === 'edit' ? 'Stock disponible actual' : 'Stock disponible'} <span className="text-red-500">*</span>
@@ -889,7 +938,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                 )}
 
                 {/* Stock mínimo */}
-{!esHistorial && (
+{!esFormHistorial && (
                 <div>
                   <label htmlFor="inv-minimo" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>
                     Stock mínimo (alerta) <span className="text-red-500">*</span>
@@ -917,7 +966,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
                     className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none transition-colors"
                     style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--bd-1)', color: 'var(--tx-1)' }} />
                 </div>
-{!esHistorial && (
+{!esFormHistorial && (
                 <div>
                   <label htmlFor="inv-estado" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--tx-3)' }}>Estado</label>
                   <select id="inv-estado" value={form.estado}
@@ -940,7 +989,7 @@ export default function InventoryPage({ tipoInventario = 'INVENTARIO', titulo = 
               className="btn-primary flex-1 justify-center py-2.5 disabled:opacity-50">
               {saveLabel}
             </button>
-            <button onClick={() => setModal(null)} className="btn-outline flex-1 justify-center">Cancelar</button>
+            <button onClick={() => { setModal(null); setPendienteTraspaso(null) }} className="btn-outline flex-1 justify-center">Cancelar</button>
           </div>
         </div>
       </Modal>
